@@ -410,6 +410,13 @@ class Invoice(DataOceanModel):
     def get_pdf(self) -> io.BytesIO:
         user = self.project_subscription.project.owner
 
+        if self.grace_period_end_date < (timezone.now()).date() + timezone.timedelta(days=1):
+            self.created_at = timezone.now()
+            self.end_date = self.created_at + timezone.timedelta(days=self.project_subscription.duration - 10)
+            self.save()
+            print(self.grace_period_end_date)
+            self.start_date = self.created_at.date()
+
         with translation.override('uk'):
             html_string = render_to_string('payment_system/invoice.html', {
                 'invoice': self,
