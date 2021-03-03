@@ -384,7 +384,7 @@ class Invoice(DataOceanModel):
         p2s = self.project_subscription
         if getattr(self, 'id', False):
             invoice_old = Invoice.objects.get(pk=self.pk)
-            if p2s.is_grace_period and not invoice_old.is_paid and self.is_paid:
+            if not invoice_old.is_paid and self.is_paid:
                 p2s.paid_up()
                 self.grace_period_block = False
                 emails.payment_confirmed(p2s)
