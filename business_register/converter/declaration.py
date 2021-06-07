@@ -1035,7 +1035,7 @@ class DeclarationConverter(BusinessConverter):
                 #         and not detailed_declaration_data['step_12'].get('isNotApplicable')):
                 #     self.save_money(detailed_declaration_data['step_12']['data'], declaration)
 
-    def is_real_estate(self, property_data, declaration):
+    def is_real_estate_without_value(self, property_data):
         TYPES = {
             'Інше': Property.OTHER,
             'Земельна ділянка': Property.LAND,
@@ -1070,5 +1070,47 @@ class DeclarationConverter(BusinessConverter):
             if acquisition_date:
                 acquisition_date = simple_format_date_to_yymmdd(acquisition_date)
             rights_data = data.get('rights')
-            if (acquisition_date > '2014-12-31') and (property_type == Property.SUMMER_HOUSE) and (valuation is None):
+
+            if (acquisition_date > '2014-12-31') and (property_type in [Property.SUMMER_HOUSE, Property.HOUSE]) \
+                    and (valuation is None):
+                return True
+
+    def is_land_without_value(self, property_data):
+        TYPES = {
+            'Інше': Property.OTHER,
+            'Земельна ділянка': Property.LAND,
+            'Кімната': Property.ROOM,
+            'Квартира': Property.APARTMENT,
+            'Садовий (дачний) будинок': Property.SUMMER_HOUSE,
+            'Житловий будинок': Property.HOUSE,
+            'Гараж': Property.GARAGE,
+            'Офіс': Property.OFFICE
+        }
+        for data in property_data:
+            if type(data['objectType']) != str:
+                self.log_error(f'Invalid value: property_type = {data["objectType"]}')
+                break
+            property_type = TYPES.get(data['objectType'])
+            valuation = data.get('costAssessment')
+            if valuation in self.NO_DATA:
+                # In 2015 there was a separate field 'costDate' or 'cost_date_assessment' with the
+                # valuation at the date of acquisition. Now all fields are united
+                valuation = data.get('costDate')
+                if valuation in self.NO_DATA:
+                    valuation = data.get('cost_date_assessment')
+            if valuation not in self.NO_DATA:
+                try:
+                    valuation = float(valuation.replace(',', '.'))
+                except ValueError:
+                    self.log_error(f'Invalid value: valuation = {valuation}')
+                    valuation = None
+            else:
+                valuation = None
+            acquisition_date = data.get('owningDate')
+            if acquisition_date:
+                acquisition_date = simple_format_date_to_yymmdd(acquisition_date)
+            rights_data = data.get('rights')
+
+            if (acquisition_date > '2014-12-31') and (property_type == Property.LAND) \
+                    and (valuation is None):
                 return True
