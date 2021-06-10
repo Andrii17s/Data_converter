@@ -19,7 +19,7 @@ from location_register.models.ratu_models import (RatuCity, )
 
 class BaseScoringRule(ABC):
 
-    def __init__(self, pep_id):
+    def __init__(self, pep_id): #pep object, not id
         self.pep_id = pep_id
         self.family_declarations_id = []
         self.pep_declarations_id = []
@@ -115,7 +115,7 @@ class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
             for pep_property in Property.objects.raw('SELECT * from business_register_property WHERE declaration_id=%s'
                                                      ' AND type>0 AND type<5', [declaration_id]):
                 for pep_region_of_residence_id in RatuCity.objects.raw('SELECT * from location_register_ratucity WHERE'
-                                                                       ' id=%s',[pep_city_of_residence_id]):
+                                                                       ' id=%s', [pep_city_of_residence_id]):
                     for pep_region_of_property_id in RatuCity.objects.raw(
                             'SELECT * from location_register_ratucity WHERE'
                             ' id=%s', [pep_property.city_id]):
@@ -130,5 +130,33 @@ class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
         return 0
 
 
-x = LiveNowhereRegion(1)
+class LuxuaryCars(BaseScoringRule):  # 18 rule -
+
+    def calculate_wage(self):
+        for declaration_id in self.pep_declarations_id:
+            for pep_car in Vehicle.objects.raw('SELECT * from business_register_vehicle WHERE declaration_id=%s',
+                                               [declaration_id]):
+                print(pep_car.valuation)
+                if (pep_car.valuation is None) and (str(pep_car.created_at.date()) > '2014-12-31'):
+                    return 0.4
+                else:
+                    pass
+        return 0
+
+
+class CashTotalAmount(BaseScoringRule):  # 20 rule -
+
+    def calculate_wage(self):
+        for declaration_id in self.family_declarations_id:
+            for pep_property in Money.objects.raw('SELECT * from business_register_money WHERE declaration_id=%s',
+                                                  [declaration_id]):
+                if (pep_property.valuation is None) and (pep_property.type == 2) and (
+                        str(pep_property.created_at.date()) > '2014-12-31'):
+                    return 0.8
+                else:
+                    pass
+        return 0
+
+
+x = LuxuaryCars(1)
 print(x.calculate_wage())
