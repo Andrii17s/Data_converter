@@ -15,8 +15,6 @@ from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from location_register.models.ratu_models import (RatuCity,)
 
 
-# docstring
-
 class BaseScoringRule(ABC):
     def __init__(self, pep):
         self.pep = pep
@@ -50,7 +48,7 @@ class IsRealEstateWithoutValue(BaseScoringRule):
         return 0
 
 
-class IsLandWithoutValue(BaseScoringRule):  # 3_2 rule
+class IsLandWithoutValue(BaseScoringRule):
     """
     Rule 3.2 - PEP03_land
     weight - 0.1
@@ -74,7 +72,7 @@ class IsLandWithoutValue(BaseScoringRule):  # 3_2 rule
         return 0
 
 
-class IsAutoWithoutValue(BaseScoringRule):  # 3_3 rule
+class IsAutoWithoutValue(BaseScoringRule):
     """
     Rule 3.3 - PEP03_car
     weight - 0.4
@@ -95,7 +93,7 @@ class IsAutoWithoutValue(BaseScoringRule):  # 3_3 rule
         return 0
 
 
-class LiveNowhere(BaseScoringRule):  # 4_1 rule
+class LiveNowhere(BaseScoringRule):
     """
     Rule 4.1 - PEP04_adr
     weight - 0.7
@@ -110,17 +108,17 @@ class LiveNowhere(BaseScoringRule):  # 4_1 rule
         for declaration in declarations_id:
             city = Declaration.objects.filter(
                 id=declaration,
-            ).values_list('city_of_registration_id', flat=True).all()[::1]
+            ).values_list('city_of_residence_id', flat=True).all()[::1][0]
             property_cities = Property.objects.filter(
                 declaration=declaration,
                 type__in=property_types,
             ).values_list('city_id', flat=True).all()[::1]
-            if not (city[0] in property_cities):
+            if not (city in property_cities):
                 return 0.4
         return 0
 
 
-class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
+class LiveNowhereRegion(BaseScoringRule):
     """
     Rule 4.2 - PEP04_reg
     weight - 0.1
@@ -133,9 +131,12 @@ class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
             pep_id=self.pep.id,
         ).values_list('id', flat=True).all()[::1]
         for declaration in declarations_id:
-            region = RatuCity.objects.filter(
+            city = Declaration.objects.filter(
                 id=declaration,
-            ).values_list('region_id', flat=True).all()[::1]
+            ).values_list('city_of_residence_id', flat=True).all()[::1][0]
+            region = RatuCity.objects.filter(
+                id=city,
+            ).values_list('region_id', flat=True).all()[::1][0]
             property_cities = Property.objects.filter(
                 declaration=declaration,
                 type__in=property_types,
@@ -145,32 +146,8 @@ class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
             property_regions = RatuCity.objects.filter(
                 id__in=property_cities,
             ).values_list('region_id', flat=True).all()[::1]
-            print(region[0], property_regions)
-            if not (region[0] in property_regions):
+            if not (region in property_regions):
                 return 0.1
-        return 0
-
-    def calculate_wage2(self):
-        live_nowhere = True
-        for declaration_id in self.pep_declarations_id:
-            for declaration in Declaration.objects.raw('SELECT * FROM business_register_declaration WHERE id=%s',
-                                                       [declaration_id]):
-                pep_city_of_residence_id = declaration.city_of_residence_id
-            for pep_property in Property.objects.raw('SELECT * from business_register_property WHERE declaration_id=%s'
-                                                     ' AND type>0 AND type<5', [declaration_id]):
-                for pep_region_of_residence_id in RatuCity.objects.raw('SELECT * from location_register_ratucity WHERE'
-                                                                       ' id=%s', [pep_city_of_residence_id]):
-                    for pep_region_of_property_id in RatuCity.objects.raw(
-                            'SELECT * from location_register_ratucity WHERE'
-                            ' id=%s', [pep_property.city_id]):
-                        if pep_region_of_residence_id == pep_region_of_property_id:
-                            live_nowhere = False
-                            continue
-                        else:
-                            pass
-            if live_nowhere:
-                return 0.7
-
         return 0
 
 
