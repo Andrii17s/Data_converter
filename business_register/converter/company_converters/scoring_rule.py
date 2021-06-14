@@ -102,22 +102,21 @@ class LiveNowhere(BaseScoringRule):  # 4_1 rule
     There is no information on the real estate or apartment in the city, which indicated as PEP's place of residence
     """
 
-    def calculate_wage(self):
-        live_nowhere = True
-        for declaration_id in self.pep_declarations_id:
-            for declaration in Declaration.objects.raw('SELECT * FROM business_register_declaration WHERE id=%s',
-                                                       [declaration_id]):
-                pep_city_of_residence_id = declaration.city_of_residence_id
-            for pep_property in Property.objects.raw('SELECT * from business_register_property WHERE declaration_id=%s'
-                                                     ' AND type>0 AND type<5', [declaration_id]):
-                if pep_property.city_id == pep_city_of_residence_id:
-                    live_nowhere = False
-                    continue
-                else:
-                    pass
-            if live_nowhere:
-                return 0.7
-
+    def calculate_weight(self):
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True).all()[::1]
+        for declaration in declarations_id:
+            city = Declaration.objects.filter(
+                id=declaration,
+            ).values_list('city_of_registration_id', flat=True).all()[::1]
+            property_cities = Property.objects.filter(
+                declaration=declaration,
+                type__in=property_types,
+            ).values_list('city_id', flat=True).all()[::1]
+            if not (city[0] in property_cities):
+                return 0.4
         return 0
 
 
@@ -128,7 +127,30 @@ class LiveNowhereRegion(BaseScoringRule):  # 4_2 rule
     There is no information on the real estate or apartment in the region, which indicated as PEP's place of residence
     """
 
-    def calculate_wage(self):
+    def calculate_weight(self):
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True).all()[::1]
+        for declaration in declarations_id:
+            region = RatuCity.objects.filter(
+                id=declaration,
+            ).values_list('region_id', flat=True).all()[::1]
+            property_cities = Property.objects.filter(
+                declaration=declaration,
+                type__in=property_types,
+            ).values_list('city_id', flat=True).all()[::1]
+            if not property_cities:
+                return 0.1
+            property_regions = RatuCity.objects.filter(
+                id__in=property_cities,
+            ).values_list('region_id', flat=True).all()[::1]
+            print(region[0], property_regions)
+            if not (region[0] in property_regions):
+                return 0.1
+        return 0
+
+    def calculate_wage2(self):
         live_nowhere = True
         for declaration_id in self.pep_declarations_id:
             for declaration in Declaration.objects.raw('SELECT * FROM business_register_declaration WHERE id=%s',
@@ -212,5 +234,5 @@ class CashTotalAmount(BaseScoringRule):  # 20 rule -
         return 0
 
 
-x = IsAutoWithoutValue(Pep.objects.raw('SELECT * from business_register_pep WHERE id=1')[0])
+x = LiveNowhereRegion(Pep.objects.raw('SELECT * from business_register_pep WHERE id=1')[0])
 print(x.calculate_weight())
