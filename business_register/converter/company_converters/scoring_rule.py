@@ -150,13 +150,31 @@ class LiveNowhereRegion(BaseScoringRule):
                 return 0.1
         return 0
 
+class LuxuaryCars(BaseScoringRule):
+    """
+    Rule 17 - PEP17
+    weight - 0.8
+    Declared ownership of vehicle produced after 2013 with an indicated value less than 150000 UAH
+    """
 
-class LuxuaryCars(BaseScoringRule):  # 18 rule -
+    def calculate_wage(self):
+        for declaration_id in self.pep_declarations_id:
+            for pep_car in Vehicle.objects.raw('SELECT * from business_register_vehicle WHERE declaration_id=%s',
+                                               [declaration_id]):
+                print(pep_car.valuation)
+                if (pep_car.valuation is None) and (str(pep_car.created_at.date()) > '2014-12-31'):
+                    return 0.4
+                else:
+                    pass
+        return 0
+
+
+class LuxuaryCars(BaseScoringRule):
     """
     Rule 18 - PEP18
     weight - 0.4
-    There is no information on the value of the realestate owned by PEP or
-    family members since 2015
+    Declared ownership and/or right of use of a business class car, or car with a price exceeding
+    800000 UAH or brand vehicle, which is considered to be a luxury car
     """
 
     def calculate_wage(self):
@@ -171,12 +189,11 @@ class LuxuaryCars(BaseScoringRule):  # 18 rule -
         return 0
 
 
-class CarsCount(BaseScoringRule):  # 19 rule -
+class CarsCount(BaseScoringRule):
     """
     Rule 19 - PEP19
     weight - 0.4
-    There is no information on the value of the realestate owned by PEP or
-    family members since 2015
+    Declared ownership and/or right of use of more than 5 cars
     """
 
     def calculate_wage(self):
@@ -191,12 +208,11 @@ class CarsCount(BaseScoringRule):  # 19 rule -
         return 0
 
 
-class CashTotalAmount(BaseScoringRule):  # 20 rule -
+class CashTotalAmount(BaseScoringRule):
     """
     Rule 20 - PEP20
     weight - 0.8
-    There is no information on the value of the realestate owned by PEP or
-    family members since 2015
+    The overall amount of declared hard cash owned by PEP and members of the family exceeds 1.5 million UAH
     """
 
     def calculate_wage(self):
