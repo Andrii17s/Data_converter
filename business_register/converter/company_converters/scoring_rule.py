@@ -12,7 +12,7 @@ from business_register.models.declaration_models import (Declaration,
                                                          Money,
                                                          )
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
-from location_register.models.ratu_models import (RatuCity,)
+from location_register.models.ratu_models import (RatuCity, )
 
 
 class BaseScoringRule(ABC):
@@ -79,6 +79,7 @@ class IsAutoWithoutValue(BaseScoringRule):
     There is no information on the value of the vehicle owned by PEP or
     family members since 2015
     """
+
     def calculate_weight(self):
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
@@ -93,7 +94,7 @@ class IsAutoWithoutValue(BaseScoringRule):
         return 0
 
 
-class LiveNowhere(BaseScoringRule):
+class IsLiveNowhere(BaseScoringRule):
     """
     Rule 4.1 - PEP04_adr
     weight - 0.7
@@ -150,26 +151,28 @@ class LiveNowhereRegion(BaseScoringRule):
                 return 0.1
         return 0
 
-class LuxuaryCars(BaseScoringRule):
+
+class IsNewCars(BaseScoringRule):
     """
     Rule 17 - PEP17
     weight - 0.8
     Declared ownership of vehicle produced after 2013 with an indicated value less than 150000 UAH
     """
 
-    def calculate_wage(self):
-        for declaration_id in self.pep_declarations_id:
-            for pep_car in Vehicle.objects.raw('SELECT * from business_register_vehicle WHERE declaration_id=%s',
-                                               [declaration_id]):
-                print(pep_car.valuation)
-                if (pep_car.valuation is None) and (str(pep_car.created_at.date()) > '2014-12-31'):
-                    return 0.4
-                else:
-                    pass
+    def calculate_weight(self):
+        year = 2013  # min production year
+        price = 150000  # max vehicle price
+        have_weight = Vehicle.objects.filter(
+            declaration__pep_id=self.pep.id,
+            created_at__year__gt=year,
+            valuation__lt=price,
+        ).exists()
+        if have_weight:
+            return 0.8
         return 0
 
 
-class LuxuaryCars(BaseScoringRule):
+class IsLuxuryCars(BaseScoringRule):
     """
     Rule 18 - PEP18
     weight - 0.4
@@ -177,15 +180,20 @@ class LuxuaryCars(BaseScoringRule):
     800000 UAH or brand vehicle, which is considered to be a luxury car
     """
 
-    def calculate_wage(self):
-        for declaration_id in self.pep_declarations_id:
-            for pep_car in Vehicle.objects.raw('SELECT * from business_register_vehicle WHERE declaration_id=%s',
-                                               [declaration_id]):
-                print(pep_car.valuation)
-                if (pep_car.valuation is None) and (str(pep_car.created_at.date()) > '2014-12-31'):
-                    return 0.4
-                else:
-                    pass
+    def calculate_weight(self):
+        max_price = 800000  # max price of non-luxury vehicle
+        have_car = Vehicle.objects.filter(
+            declaration__pep_id=self.pep.id,
+            is_luxury=True,
+            valuation__gt=max_price,
+        ).exists()
+        have_rights = VehicleRight.objects.filter(
+            pep_id=self.pep.id,
+            car__is_luxury=True,
+            car__valuation__gt=max_price,
+        ).exists()
+        if have_car or have_rights:
+            return 0.4
         return 0
 
 
@@ -196,36 +204,18 @@ class CarsCount(BaseScoringRule):
     Declared ownership and/or right of use of more than 5 cars
     """
 
-    def calculate_wage(self):
-        for declaration_id in self.pep_declarations_id:
-            for pep_car in Vehicle.objects.raw('SELECT * from business_register_vehicle WHERE declaration_id=%s',
-                                               [declaration_id]):
-                print(pep_car.valuation)
-                if (pep_car.valuation is None) and (str(pep_car.created_at.date()) > '2014-12-31'):
-                    return 0.4
-                else:
-                    pass
+    def calculate_weight(self):
+        max_count = 5  # max amount of cars
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True).all()[::1]
+        for declaration in declarations_id:
+            have_car = Vehicle.objects.filter(
+                declaration=declaration,
+            ).count()
+            have_rights = VehicleRight.objects.filter(
+                pep_id=self.pep.id,
+            ).count()
+            if have_car + have_rights > max_count:
+                return 0.4
         return 0
-
-
-class CashTotalAmount(BaseScoringRule):
-    """
-    Rule 20 - PEP20
-    weight - 0.8
-    The overall amount of declared hard cash owned by PEP and members of the family exceeds 1.5 million UAH
-    """
-
-    def calculate_wage(self):
-        for declaration_id in self.family_declarations_id:
-            for pep_property in Money.objects.raw('SELECT * from business_register_money WHERE declaration_id=%s',
-                                                  [declaration_id]):
-                if (pep_property.valuation is None) and (pep_property.type == 2) and (
-                        str(pep_property.created_at.date()) > '2014-12-31'):
-                    return 0.8
-                else:
-                    pass
-        return 0
-
-
-x = LiveNowhereRegion(Pep.objects.raw('SELECT * from business_register_pep WHERE id=1')[0])
-print(x.calculate_weight())
