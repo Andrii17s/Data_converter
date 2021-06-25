@@ -104,3 +104,73 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsLiveNowhereCity(BaseScoringRule):
+    """
+    Rule 4.1 - PEP04_adr
+    weight - 0.7
+    There is no information on the real estate or apartment in the city, which indicated as PEP's place of residence
+    """
+
+    def calculate_weight(self):
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True)[::1]
+        for declaration in declarations_id:
+            city = Declaration.objects.filter(
+                id=declaration,
+            ).values_list('city_of_residence_id', flat=True)[::1][0]
+            property_cities = Property.objects.filter(
+                declaration=declaration,
+                type__in=property_types,
+            ).values_list('city_id', flat=True)[::1]
+            if not (city in property_cities):
+                weight = 0.4
+                data = {
+                    "declaration_id": declaration,
+                }
+                return weight, data
+        return 0, {}
+
+
+class IsLiveNowhereRegion(BaseScoringRule):
+    """
+    Rule 4.2 - PEP04_reg
+    weight - 0.1
+    There is no information on the real estate or apartment in the region, which indicated as PEP's place of residence
+    """
+
+    def calculate_weight(self):
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True)[::1]
+        for declaration in declarations_id:
+            city = Declaration.objects.filter(
+                id=declaration,
+            ).values_list('city_of_residence_id', flat=True)[::1][0]
+            region = RatuCity.objects.filter(
+                id=city,
+            ).values_list('region_id', flat=True)[::1][0]
+            property_cities = Property.objects.filter(
+                declaration=declaration,
+                type__in=property_types,
+            ).values_list('city_id', flat=True)[::1]
+            if not property_cities:
+                weight = 0.1
+                data = {
+                    "declaration_id": declaration,
+                }
+                return weight, data
+            property_regions = RatuCity.objects.filter(
+                id__in=property_cities,
+            ).values_list('region_id', flat=True)[::1]
+            if not (region in property_regions):
+                weight = 0.1
+                data = {
+                    "declaration_id": declaration,
+                }
+                return weight, data
+        return 0, {}
