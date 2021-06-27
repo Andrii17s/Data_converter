@@ -104,3 +104,33 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsManyCars(BaseScoringRule):
+    """
+    Rule 19 - PEP19
+    weight - 0.4
+    Declared ownership and/or right of use of more than 5 cars
+    """
+
+    def calculate_weight(self):
+        max_count = 5  # max amount of cars
+        declarations_id = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values_list('id', flat=True)[::1]
+        for declaration in declarations_id:
+            have_car = Vehicle.objects.filter(
+                declaration=declaration,
+            ).count()
+            have_rights = VehicleRight.objects.filter(
+                pep_id=self.pep.id,
+            ).count()
+            total = have_car + have_rights
+            if total > max_count:
+                weight = 0.4
+                data = {
+                    "declaration_id": declaration,
+                    "count": total,
+                }
+                return weight, data
+        return 0
