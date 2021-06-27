@@ -124,6 +124,7 @@ class IsNewCar(BaseScoringRule):
         if have_weight:
             weight = 0.8
             data = {
+                "declaration_id": have_weight[0][0],
                 "car_producing_year": have_weight[0][1],
                 "car_valuation": have_weight[0][2],
             }
