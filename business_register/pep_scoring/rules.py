@@ -104,3 +104,59 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsCashTotalAmount(BaseScoringRule):
+    """
+    Rule 20 - PEP20
+    weight - 0.8
+    The overall amount of declared hard cash owned by PEP and members of the family exceeds 1.5 million UAH
+    """
+
+    def calculate_weight(self):
+        max_sum = 1500000  # max amount of cash
+
+        family_ids = self.pep.related_persons.filter(
+            to_person_links__category=RelatedPersonsLink.FAMILY,
+        ).values_list('id', flat=True)[::1]
+        family_ids.append(self.pep.id)
+        declarations = Declaration.objects.filter(
+            pep_id__in=family_ids,
+        ).values('id', 'year')[::1]
+        declaration_ids = {}
+
+        for declaration in declarations:
+            year = declaration['year']
+            if not declaration_ids.__contains__(year):
+                declaration_ids[declaration['year']] = list()
+                declaration_ids[declaration['year']].extend([declaration['id']])
+            elif not declaration['id'] in declaration_ids[year]:
+                declaration_ids[year].extend([declaration['id']])
+
+        for declarations_by_year in declaration_ids.items():
+            assets_UAH = 0
+            assets_USD = 0
+            assets_EUR = 0
+            assets_GBP = 0
+            for declaration_id in declarations_by_year[1]:
+                assets = Money.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'currency')[::1]
+                for currency_pair in assets:
+                    if currency_pair[1] == 'UAH':
+                        assets_UAH += currency_pair[0]
+                    elif currency_pair[1] == 'USD':
+                        assets_USD += currency_pair[0]
+                    elif currency_pair[1] == 'EUR':
+                        assets_EUR += currency_pair[0]
+                    else:
+                        assets_GBP += currency_pair[0]
+                total = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+                if total > max_sum:
+                    weight = 0.8
+                    data = {
+                        "declaration_id": declaration_id,
+                        "count": total,
+                    }
+                    return weight, data
+        return 0, {}
