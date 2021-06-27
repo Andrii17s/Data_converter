@@ -104,3 +104,76 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsGettingRicher(BaseScoringRule):
+    """
+    Rule 5 - PEP05
+    weight - 0.4
+    PEP declared that the overall value of the movable and immovable property and
+    hard cash increased 5 times compared to the declaration for the previous year
+    """
+
+    def calculate_weight(self):
+        declarations = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values('id', 'year').all()[::1]
+        declaration_ids = {}
+
+        for declaration in declarations:
+            year = declaration['year']
+            if not declaration_ids.__contains__(year):
+                declaration_ids[declaration['year']] = list()
+                declaration_ids[declaration['year']].extend([declaration['id']])
+            elif not declaration['id'] in declaration_ids[year]:
+                declaration_ids[year].extend([declaration['id']])
+        declarations_len = len(declaration_ids)
+        if declarations_len < 2:
+            return 0
+        else:
+            declaration_summ = {}
+            id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
+            for i in range(declarations_len):
+                sum_of_assets = 0
+                try:
+                    sum_of_assets += Vehicle.objects.filter(
+                        declaration_id=id_sort_by_year[i][1][0],
+                    ).values_list('valuation', flat=True).all()[::1][0]
+                finally:
+                    pass
+                total = 0
+                try:
+                    assets = Money.objects.filter(
+                        declaration_id=id_sort_by_year[i][1][0],
+                    ).values_list('amount', 'currency').all()[::1]
+                    for currency_pair in assets:
+                        assets_UAH = 0
+                        assets_USD = 0
+                        assets_EUR = 0
+                        assets_GBP = 0
+                        if currency_pair[1] == 'UAH':
+                            assets_UAH += currency_pair[0]
+                        elif currency_pair[1] == 'USD':
+                            assets_USD += currency_pair[0]
+                        elif currency_pair[1] == 'EUR':
+                            assets_EUR += currency_pair[0]
+                        else:
+                            assets_GBP += currency_pair[0]
+                        total = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+                finally:
+                    pass
+
+                declaration_summ[id_sort_by_year[i][0]] = total
+            for year in declaration_summ:
+                try:
+                    if declaration_summ[year] * 5 < declaration_summ[year + 1]:
+                        weight = 0.4
+                        data = {
+                            "first_year": year,
+                            "first_sum": declaration_summ[year],
+                            "second_sum": declaration_summ[year + 1],
+                        }
+                        return weight, data
+                finally:
+                    pass
+        return 0, {}
