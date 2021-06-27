@@ -159,7 +159,7 @@ class IsSpendingMore(BaseScoringRule):
                 except:
                     pass
                 total_UAH = assets_UAH + income_UAH
-                if not total_UAH < expenditures_UAH:
+                if total_UAH < expenditures_UAH:
                     weight = 0.7
                     data = {
                         "total_UAH": total_UAH,
