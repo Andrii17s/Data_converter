@@ -104,3 +104,28 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsNewCar(BaseScoringRule):
+    """
+    Rule 17 - PEP17
+    weight - 0.8
+    Declared ownership of vehicle produced after 2013 with an indicated value less than 150000 UAH
+    """
+
+    def calculate_weight(self):
+        year = 2013  # min production year
+        price = 150000  # max vehicle price
+        have_weight = Vehicle.objects.filter(
+            declaration__pep_id=self.pep.id,
+            created_at__year__gt=year,
+            valuation__lt=price,
+        ).values_list('declaration_id', 'year', 'valuation')[::1]
+        if have_weight:
+            weight = 0.8
+            data = {
+                "car_producing_year": have_weight[0][1],
+                "car_valuation": have_weight[0][2],
+            }
+            return weight, data
+        return 0, {}
