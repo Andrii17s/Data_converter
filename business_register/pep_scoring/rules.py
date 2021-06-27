@@ -104,3 +104,67 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+class IsLuxuryCar(BaseScoringRule):
+    """
+    Rule 18 - PEP18
+    weight - 0.4
+    Declared ownership and/or right of use of a business class car, or car with a price exceeding
+    800000 UAH or brand vehicle, which is considered to be a luxury car
+    """
+
+    def calculate_weight(self):
+        max_price = 800000  # max price of non-luxury vehicle
+        have_car = Vehicle.objects.filter(
+            declaration__pep_id=self.pep.id,
+            is_luxury=True
+        ).values_list('declaration_id', 'valuation')[::1]
+        if have_car:
+            weight = 0.4
+            data = {
+                "type": 'owner',
+                "reason": 'luxury',
+                "declaration_id": have_car[0][0],
+            }
+            return weight, data
+        have_car = Vehicle.objects.filter(
+            declaration__pep_id=self.pep.id,
+            valuation__gt=max_price,
+        ).values_list('declaration_id', 'valuation')[::1]
+        print(have_car)
+        if have_car:
+            weight = 0.4
+            data = {
+                "type": 'owner',
+                "reason": 'expensive',
+                "declaration_id": have_car[0][0],
+            }
+            return weight, data
+        have_rights = VehicleRight.objects.filter(
+            pep_id=self.pep.id,
+            car__is_luxury=True,
+        ).values_list('car__declaration_id')[::1]
+        print(have_rights)
+        if have_rights:
+            weight = 0.4
+            data = {
+                "type": 'rights',
+                "reason": 'luxury',
+                "declaration_id": have_rights[0][0],
+            }
+            return weight, data
+        have_rights = VehicleRight.objects.filter(
+            pep_id=self.pep.id,
+            car__valuation__gt=max_price,
+        ).values_list('car__declaration_id')[::1]
+        print(have_rights)
+        if have_rights:
+            weight = 0.4
+            data = {
+                "type": 'rights',
+                "reason": 'expensive',
+                "declaration_id": have_rights[0][0],
+            }
+            return weight, data
+        return 0, {}
