@@ -117,7 +117,7 @@ class IsGettingRicher(BaseScoringRule):
     def calculate_weight(self):
         declarations = Declaration.objects.filter(
             pep_id=self.pep.id,
-        ).values('id', 'year').all()[::1]
+        ).values('id', 'year')[::1]
         declaration_ids = {}
 
         for declaration in declarations:
@@ -139,7 +139,7 @@ class IsGettingRicher(BaseScoringRule):
                     sum_of_assets += Vehicle.objects.filter(
                         declaration_id=id_sort_by_year[i][1][0],
                     ).values_list('valuation', flat=True).all()[::1][0]
-                finally:
+                except:
                     pass
                 total = 0
                 try:
@@ -160,7 +160,7 @@ class IsGettingRicher(BaseScoringRule):
                         else:
                             assets_GBP += currency_pair[0]
                         total = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-                finally:
+                except:
                     pass
 
                 declaration_summ[id_sort_by_year[i][0]] = total
@@ -174,6 +174,6 @@ class IsGettingRicher(BaseScoringRule):
                             "second_sum": declaration_summ[year + 1],
                         }
                         return weight, data
-                finally:
+                except:
                     pass
         return 0, {}
