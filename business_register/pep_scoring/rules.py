@@ -131,21 +131,19 @@ class IsGettingRicher(BaseScoringRule):
         if declarations_len < 2:
             return 0
         else:
-            declaration_summ = {}
+            declaration_sum = {}
             id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
             for i in range(declarations_len):
                 sum_of_assets = 0
-                try:
-                    sum_of_assets += Vehicle.objects.filter(
-                        declaration_id=id_sort_by_year[i][1][0],
-                    ).values_list('valuation', flat=True).all()[::1][0]
-                except:
-                    pass
+                for vehicle in Vehicle.objects.filter(
+                    declaration_id=id_sort_by_year[i][1][0],
+                ).values_list('valuation', flat=True):
+                    sum_of_assets += vehicle
                 total = 0
                 try:
                     assets = Money.objects.filter(
                         declaration_id=id_sort_by_year[i][1][0],
-                    ).values_list('amount', 'currency').all()[::1]
+                    ).values_list('amount', 'currency')[::1]
                     for currency_pair in assets:
                         assets_UAH = 0
                         assets_USD = 0
@@ -163,15 +161,15 @@ class IsGettingRicher(BaseScoringRule):
                 except:
                     pass
 
-                declaration_summ[id_sort_by_year[i][0]] = total
-            for year in declaration_summ:
+                declaration_sum[id_sort_by_year[i][0]] = total
+            for year in declaration_sum:
                 try:
-                    if declaration_summ[year] * 5 < declaration_summ[year + 1]:
+                    if declaration_sum[year] * 5 < declaration_sum[year + 1]:
                         weight = 0.4
                         data = {
                             "first_year": year,
-                            "first_sum": declaration_summ[year],
-                            "second_sum": declaration_summ[year + 1],
+                            "first_sum": declaration_sum[year],
+                            "second_sum": declaration_sum[year + 1],
                         }
                         return weight, data
                 except:
