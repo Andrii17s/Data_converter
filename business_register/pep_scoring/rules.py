@@ -118,9 +118,9 @@ class IsManyCars(BaseScoringRule):
         declarations_id = Declaration.objects.filter(
             pep_id=self.pep.id,
         ).values_list('id', flat=True)[::1]
-        for declaration in declarations_id:
+        for declaration_id in declarations_id:
             have_car = Vehicle.objects.filter(
-                declaration=declaration,
+                declaration=declaration_id,
             ).count()
             have_rights = VehicleRight.objects.filter(
                 pep_id=self.pep.id,
@@ -129,7 +129,7 @@ class IsManyCars(BaseScoringRule):
             if total > max_count:
                 weight = 0.4
                 data = {
-                    "declaration_id": declaration,
+                    "declaration_id": declaration_id,
                     "count": total,
                 }
                 return weight, data
