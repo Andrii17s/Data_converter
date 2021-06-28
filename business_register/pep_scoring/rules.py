@@ -132,7 +132,6 @@ class IsLuxuryCar(BaseScoringRule):
             declaration__pep_id=self.pep.id,
             valuation__gt=max_price,
         ).values_list('declaration_id', 'valuation')[::1]
-        print(have_car)
         if have_car:
             weight = 0.4
             data = {
@@ -156,7 +155,7 @@ class IsLuxuryCar(BaseScoringRule):
             return weight, data
         have_rights = VehicleRight.objects.filter(
             pep_id=self.pep.id,
-            car__valuation__gt=max_price,
+            car__valuation__gte=max_price,
         ).values_list('car__declaration_id')[::1]
         print(have_rights)
         if have_rights:
