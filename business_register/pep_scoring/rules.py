@@ -126,8 +126,8 @@ class IsLiveNowhereCity(BaseScoringRule):
                 declaration=declaration,
                 type__in=property_types,
             ).values_list('city_id', flat=True)[::1]
-            if not (city in property_cities):
-                weight = 0.4
+            if city not in property_cities:
+                weight = 0.7
                 data = {
                     "declaration_id": declaration,
                 }
@@ -167,7 +167,7 @@ class IsLiveNowhereRegion(BaseScoringRule):
             property_regions = RatuCity.objects.filter(
                 id__in=property_cities,
             ).values_list('region_id', flat=True)[::1]
-            if not (region in property_regions):
+            if region not in property_regions:
                 weight = 0.1
                 data = {
                     "declaration_id": declaration,
