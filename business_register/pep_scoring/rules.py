@@ -122,8 +122,8 @@ class IsWinningLottery(BaseScoringRule):
 
         for declaration in declarations:
             year = declaration['year']
-            if not declaration_ids.__contains__(year):
-                declaration_ids[declaration['year']] = list()
+            if year not in declaration_ids:
+                declaration_ids[declaration['year']] = []
                 declaration_ids[declaration['year']].extend([declaration['id']])
             elif not declaration['id'] in declaration_ids[year]:
                 declaration_ids[year].extend([declaration['id']])
@@ -134,7 +134,7 @@ class IsWinningLottery(BaseScoringRule):
                     declaration_id=declaration_id,
                 ).values_list('amount', 'type')[::1]
                 for income in incomes:
-                    if (income[1] == Income.PRIZE) and (income[0] > prize_max_amount):
+                    if income[1] == Income.PRIZE and income[0] > prize_max_amount:
                         weight = 1.0
                         data = {
                             "prize_prise_UAH": income[0],
