@@ -118,8 +118,8 @@ class IsNewCar(BaseScoringRule):
         price = 150000  # max vehicle price
         have_weight = Vehicle.objects.filter(
             declaration__pep_id=self.pep.id,
-            created_at__year__gt=year,
-            valuation__lt=price,
+            created_at__year__gtе=year,
+            valuation__ltе=price,
         ).values_list('declaration_id', 'year', 'valuation')[::1]
         if have_weight:
             weight = 0.8
