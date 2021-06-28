@@ -130,6 +130,7 @@ class IsLiveNowhereCity(BaseScoringRule):
                 weight = 0.7
                 data = {
                     "declaration_id": declaration,
+                    "live_in_city": city,
                 }
                 return weight, data
         return 0, {}
@@ -171,6 +172,7 @@ class IsLiveNowhereRegion(BaseScoringRule):
                 weight = 0.1
                 data = {
                     "declaration_id": declaration,
+                    "live_in_region": region,
                 }
                 return weight, data
         return 0, {}
