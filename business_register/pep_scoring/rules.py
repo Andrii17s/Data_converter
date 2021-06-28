@@ -130,7 +130,7 @@ class IsManyCars(BaseScoringRule):
                 weight = 0.4
                 data = {
                     "declaration_id": declaration_id,
-                    "count": total,
+                    "total_cars_have": total,
                 }
                 return weight, data
-        return 0
+        return 0, {}
