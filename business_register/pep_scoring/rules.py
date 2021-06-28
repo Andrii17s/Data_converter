@@ -20,6 +20,67 @@ class BaseScoringRule(ABC):
         pass
 
 
+class IsSpendingMore(BaseScoringRule):
+    """
+    Rule 2 - PEP02
+    weight - 0.4
+    The overall value of the property and assets exceeds income 10 or more times for the current year
+    """
+
+    def calculate_weight(self):
+        declarations = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values('id', 'year')[::1]
+        declaration_ids = {}
+
+        for declaration in declarations:
+            year = declaration['year']
+            if year not in declaration_ids:
+                declaration_ids[declaration['year']] = []
+                declaration_ids[declaration['year']].extend([declaration['id']])
+            elif not declaration['id'] in declaration_ids[year]:
+                declaration_ids[year].extend([declaration['id']])
+
+        for declarations_by_year in declaration_ids.items():
+            assets_UAH = 0
+            income_UAH = 0
+            for declaration_id in declarations_by_year[1]:
+                incomes = Income.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'type')[::1]
+                for income in incomes:
+                    income_UAH += income[0]
+                try:
+                    assets = Money.objects.filter(
+                        declaration_id=declaration_id,
+                    ).values_list('amount', 'currency')[::1]
+                    assets_UAH = 0
+                    assets_USD = 0
+                    assets_EUR = 0
+                    assets_GBP = 0
+                    for currency_pair in assets:
+                        if currency_pair[1] == 'UAH':
+                            assets_UAH += currency_pair[0]
+                        elif currency_pair[1] == 'USD':
+                            assets_USD += currency_pair[0]
+                        elif currency_pair[1] == 'EUR':
+                            assets_EUR += currency_pair[0]
+                        else:
+                            assets_GBP += currency_pair[0]
+                        assets_UAH = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+                except:
+                    pass
+                if assets_UAH > income_UAH * 10:
+                    weight = 0.4
+                    data = {
+                        "assets_UAH": assets_UAH,
+                        "income_UAH": income_UAH,
+                        "year": declarations_by_year[0],
+                    }
+                    return weight, data
+        return 0, {}
+
+
 class IsRealEstateWithoutValue(BaseScoringRule):
     """
     Rule 3.1 - PEP03_home
@@ -103,67 +164,4 @@ class IsAutoWithoutValue(BaseScoringRule):
                 "declaration_id": have_weight[0][1],
             }
             return weight, data
-        return 0, {}
-
-
-class IsSpendingMore(BaseScoringRule):
-    """
-    Rule 2 - PEP02
-    weight - 0.4
-    The overall value of the property and assets  exceeds income 10 or more times for the current year
-    """
-
-    def calculate_weight(self):
-        declarations = Declaration.objects.filter(
-            pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
-        declaration_ids = {}
-
-        for declaration in declarations:
-            year = declaration['year']
-            if not declaration_ids.__contains__(year):
-                declaration_ids[declaration['year']] = list()
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
-
-        for declarations_by_year in declaration_ids.items():
-            assets_UAH = 0
-            income_UAH = 0
-            expenditures_UAH = 0  # !
-            for declaration_id in declarations_by_year[1]:
-                incomes = Income.objects.filter(
-                    declaration_id=declaration_id,
-                ).values_list('amount', 'type')[::1]
-                for income in incomes:
-                    income_UAH += income[0]
-                try:
-                    assets = Money.objects.filter(
-                        declaration_id=declaration_id,
-                    ).values_list('amount', 'currency')[::1]
-                    assets_UAH = 0
-                    assets_USD = 0
-                    assets_EUR = 0
-                    assets_GBP = 0
-                    for currency_pair in assets:
-                        if currency_pair[1] == 'UAH':
-                            assets_UAH += currency_pair[0]
-                        elif currency_pair[1] == 'USD':
-                            assets_USD += currency_pair[0]
-                        elif currency_pair[1] == 'EUR':
-                            assets_EUR += currency_pair[0]
-                        else:
-                            assets_GBP += currency_pair[0]
-                        assets_UAH = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-                except:
-                    pass
-                total_UAH = assets_UAH + income_UAH
-                if total_UAH < expenditures_UAH:
-                    weight = 0.7
-                    data = {
-                        "total_UAH": total_UAH,
-                        "expenditures_UAH": expenditures_UAH,
-                        "year": declarations_by_year[0],
-                    }
-                    return weight, data
         return 0, {}
