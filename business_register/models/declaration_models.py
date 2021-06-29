@@ -1335,3 +1335,241 @@ class PropertyRight(BaseRight):
         verbose_name='property_right',
         help_text='right to the property'
     )
+
+
+class Score(DataOceanModel):
+    pep = models.ForeignKey(
+        Pep,
+        on_delete=models.PROTECT,
+        related_name='scoring',
+        verbose_name='PEP who is evaluated',
+        help_text='politically exposed person who declares'
+    )
+    pep_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='summary scoring weight'
+    )
+    pep01_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP01 rule'
+    )
+    pep01_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP01 rule'
+    )
+    pep02_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP02 rule'
+    )
+    pep02_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP02 rule'
+    )
+    pep03_home_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP03 HOME rule'
+    )
+    pep03_home_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP03 HOME rule'
+    )
+    pep03_land_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP03 LAND rule'
+    )
+    pep03_land_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP03 LAND rule'
+    )
+    pep03_auto_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP03 AUTO rule'
+    )
+    pep03_auto_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP03 AUTO rule'
+    )
+    pep04_city_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP04 CITY rule'
+    )
+    pep04_city_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP04 CITY rule'
+    )
+    pep04_region_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP04 REGION rule'
+    )
+    pep04_region_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP04 REGION rule'
+    )
+    pep05_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP05 rule'
+    )
+    pep05_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP05 rule'
+    )
+    pep11_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP11 rule'
+    )
+    pep11_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP11 rule'
+    )
+    pep13_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP13 rule'
+    )
+    pep13_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP13 rule'
+    )
+    pep15_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP15 rule'
+    )
+    pep15_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP15 rule'
+    )
+    pep16_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP16 rule'
+    )
+    pep16_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP16 rule'
+    )
+    pep17_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP17 rule'
+    )
+    pep17_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP17 rule'
+    )
+    pep18_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP18 rule'
+    )
+    pep18_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP18 rule'
+    )
+    pep19_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP19 rule'
+    )
+    pep19_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP19 rule'
+    )
+    pep20_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP20 rule'
+    )
+    pep20_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP20 rule'
+    )
+    pep21_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP21 rule'
+    )
+    pep21_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP21 rule'
+    )
+    pep22_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP22 rule'
+    )
+    pep22_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP22 rule'
+    )
+    pep24_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP24 rule'
+    )
+    pep24_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP24 rule'
+    )
+    pep27_score = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text='score for PEP27 rule'
+    )
+    pep27_info = models.TextField(
+        blank=True,
+        default='',
+        help_text='additional info for PEP27 rule'
+    )
+    def __str__(self):
+        return f'scoring of {self.pep}'
