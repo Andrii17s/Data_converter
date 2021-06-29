@@ -8,7 +8,7 @@ from business_register.models.declaration_models import (Declaration,
                                                          PropertyRight,
                                                          )
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
-from location_register.models.ratu_models import RatuCity
+from location_register.models.ratu_models import RatuCity, RatuRegion
 
 
 class BaseScoringRule(ABC):
@@ -118,19 +118,23 @@ class IsLiveNowhereCity(BaseScoringRule):
         declarations_id = Declaration.objects.filter(
             pep_id=self.pep.id,
         ).values_list('id', flat=True)[::1]
-        for declaration in declarations_id:
-            city = Declaration.objects.filter(
-                id=declaration,
+        for declaration_id in declarations_id:
+            city_id = Declaration.objects.filter(
+                id=declaration_id,
             ).values_list('city_of_residence_id', flat=True)[::1][0]
             property_cities = Property.objects.filter(
-                declaration=declaration,
+                declaration=declaration_id,
                 type__in=property_types,
             ).values_list('city_id', flat=True)[::1]
-            if city not in property_cities:
+            if city_id not in property_cities:
+                city_name = RatuCity.objects.filter(
+                    id=city_id
+                ).values_list('name', flat=True)[::1][0]
                 weight = 0.7
                 data = {
-                    "declaration_id": declaration,
-                    "live_in_city": city,
+                    "declaration_id": declaration_id,
+                    "live_in_city": city_name,
+                    "live_in_city_id": city_id,
                 }
                 return weight, data
         return 0, {}
@@ -148,31 +152,36 @@ class IsLiveNowhereRegion(BaseScoringRule):
         declarations_id = Declaration.objects.filter(
             pep_id=self.pep.id,
         ).values_list('id', flat=True)[::1]
-        for declaration in declarations_id:
-            city = Declaration.objects.filter(
-                id=declaration,
+        for declaration_id in declarations_id:
+            city_id = Declaration.objects.filter(
+                id=declaration_id,
             ).values_list('city_of_residence_id', flat=True)[::1][0]
-            region = RatuCity.objects.filter(
-                id=city,
+            region_id = RatuCity.objects.filter(
+                id=city_id,
             ).values_list('region_id', flat=True)[::1][0]
             property_cities = Property.objects.filter(
-                declaration=declaration,
+                declaration=declaration_id,
                 type__in=property_types,
             ).values_list('city_id', flat=True)[::1]
             if not property_cities:
                 weight = 0.1
                 data = {
-                    "declaration_id": declaration,
+                    "declaration_id": declaration_id,
                 }
                 return weight, data
             property_regions = RatuCity.objects.filter(
                 id__in=property_cities,
             ).values_list('region_id', flat=True)[::1]
-            if region not in property_regions:
+            if region_id not in property_regions:
+                region_name = RatuRegion.objects.filter(
+                    id=city_id
+                ).values_list('name', flat=True)[::1][0]
                 weight = 0.1
                 data = {
-                    "declaration_id": declaration,
-                    "live_in_region": region,
+                    "declaration_id": declaration_id,
+                    "live_in_region_id": region_id,
+                    "live_in_region": region_name,
+                    "live_in_city_id": city_id,
                 }
                 return weight, data
         return 0, {}
