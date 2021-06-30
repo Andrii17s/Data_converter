@@ -21,7 +21,7 @@ from location_register.models.ratu_models import RatuCity
 class BaseScoringRule(ABC):
     rule_id = None
 
-    class DataSerializer(serializers.Serializer, ABC):
+    class DataSerializer(serializers.Serializer):
         """ Overwrite this class in child classes """
 
     def __init__(self, declaration: Declaration) -> None:
@@ -69,58 +69,20 @@ class IsSpendingMore(BaseScoringRule):
     The overall value of the property and assets exceeds income 10 or more times for the current year
     """
 
-    def calculate_weight(self):
-        declarations = Declaration.objects.filter(
-            pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
-        declaration_ids = {}
+    rule_id = ScoringRuleEnum.PEP02
 
-        for declaration in declarations:
-            year = declaration['year']
-            if year not in declaration_ids:
-                declaration_ids[declaration['year']] = []
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
+    class DataSerializer(serializers.Serializer):
+        assets_UAH = serializers.IntegerField(min_value=0, required=True)
+        income_UAH = serializers.IntegerField(min_value=0, required=True)
 
-        for declarations_by_year in declaration_ids.items():
-            assets_UAH = 0
-            income_UAH = 0
-            for declaration_id in declarations_by_year[1]:
-                incomes = Income.objects.filter(
-                    declaration_id=declaration_id,
-                ).values_list('amount', 'type')[::1]
-                for income in incomes:
-                    income_UAH += income[0]
-                try:
-                    assets = Money.objects.filter(
-                        declaration_id=declaration_id,
-                    ).values_list('amount', 'currency')[::1]
-                    assets_UAH = 0
-                    assets_USD = 0
-                    assets_EUR = 0
-                    assets_GBP = 0
-                    for currency_pair in assets:
-                        if currency_pair[1] == 'UAH':
-                            assets_UAH += currency_pair[0]
-                        elif currency_pair[1] == 'USD':
-                            assets_USD += currency_pair[0]
-                        elif currency_pair[1] == 'EUR':
-                            assets_EUR += currency_pair[0]
-                        else:
-                            assets_GBP += currency_pair[0]
-                        assets_UAH = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-                except:
-                    pass
-                if assets_UAH > income_UAH * 10:
-                    weight = 0.4
-                    data = {
-                        "assets_UAH": assets_UAH,
-                        "income_UAH": income_UAH,
-                        "year": declarations_by_year[0],
-                    }
-                    return weight, data
-        return 0, {}
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        print(self)
+        weight = 0.4
+        data = {
+            "assets_UAH": 4,
+            "income_UAH": 4,
+        }
+        return weight, data
 
 
 class IsRealEstateWithoutValue(BaseScoringRule):
@@ -225,3 +187,7 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+x = IsAutoWithoutValue(Declaration.objects.raw('SELECT * from business_register_declaration WHERE id=1')[0])
+print(x.calculate_weight())
