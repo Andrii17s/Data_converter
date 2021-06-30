@@ -76,14 +76,41 @@ class IsSpendingMore(BaseScoringRule):
         income_UAH = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        print(self)
-        weight = 0.4
-        data = {
-            "assets_UAH": 4,
-            "income_UAH": 4,
-        }
-        return weight, data
-
+        assets_UAH = 0
+        income_UAH = 0
+        print(self.declaration.id)
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type')[::1]
+        for income in incomes:
+            income_UAH += income[0]
+        try:
+            assets = Money.objects.filter(
+                declaration_id=self.declaration.id,
+            ).values_list('amount', 'currency')[::1]
+            assets_UAH = 0
+            assets_USD = 0
+            assets_EUR = 0
+            assets_GBP = 0
+            for currency_pair in assets:
+                if currency_pair[1] == 'UAH':
+                    assets_UAH += currency_pair[0]
+                elif currency_pair[1] == 'USD':
+                    assets_USD += currency_pair[0]
+                elif currency_pair[1] == 'EUR':
+                    assets_EUR += currency_pair[0]
+                else:
+                    assets_GBP += currency_pair[0]
+                assets_UAH = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+        except:
+            pass
+        if assets_UAH > income_UAH * 10:
+            weight = 0.4
+            data = {
+                "assets_UAH": assets_UAH,
+                "income_UAH": income_UAH,
+            }
+            return weight, data
 
 class IsRealEstateWithoutValue(BaseScoringRule):
     """
@@ -187,7 +214,3 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
-
-
-x = IsAutoWithoutValue(Declaration.objects.raw('SELECT * from business_register_declaration WHERE id=1')[0])
-print(x.calculate_weight())
