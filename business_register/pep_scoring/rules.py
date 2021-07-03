@@ -217,6 +217,3 @@ class IsCashTotalAmount(BaseScoringRule):
             }
             return weight, data
         return 0, {}
-
-x = IsCashTotalAmount(Declaration.objects.raw('SELECT * from business_register_declaration WHERE id=1')[0])
-print(x.calculate_weight())
