@@ -173,32 +173,23 @@ class IsWinningLottery(BaseScoringRule):
     Declared lottery winning or prize with a price of more than 10 000 UAH
     """
 
-    def calculate_weight(self):
+    rule_id = ScoringRuleEnum.PEP03_car
+
+    class DataSerializer(serializers.Serializer):
+        prize_prise_UAH = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
         prize_max_amount = 10000
-        declarations = Declaration.objects.filter(
-            pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
-        declaration_ids = {}
-
-        for declaration in declarations:
-            year = declaration['year']
-            if year not in declaration_ids:
-                declaration_ids[declaration['year']] = []
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
-
-        for declarations_by_year in declaration_ids.items():
-            for declaration_id in declarations_by_year[1]:
-                incomes = Income.objects.filter(
-                    declaration_id=declaration_id,
-                ).values_list('amount', 'type')[::1]
-                for income in incomes:
-                    if income[1] == Income.PRIZE and income[0] > prize_max_amount:
-                        weight = 1.0
-                        data = {
-                            "prize_prise_UAH": income[0],
-                            "year": declarations_by_year[0],
-                        }
-                        return weight, data
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type')[::1]
+        for income in incomes:
+            if income[1] == Income.PRIZE and income[0] > prize_max_amount:
+                weight = 1.0
+                data = {
+                    "prize_prise_UAH": income[0],
+                    "declaration_id": self.declaration.id,
+                }
+                return weight, data
         return 0, {}
