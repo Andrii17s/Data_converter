@@ -174,64 +174,59 @@ class IsGettingRicher(BaseScoringRule):
     hard cash increased 5 times compared to the declaration for the previous year
     """
 
-    def calculate_weight(self):
-        declarations = Declaration.objects.filter(
-            pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
-        declaration_ids = {}
+    rule_id = ScoringRuleEnum.PEP05
 
-        for declaration in declarations:
-            year = declaration['year']
-            if not declaration_ids.__contains__(year):
-                declaration_ids[declaration['year']] = list()
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
-        declarations_len = len(declaration_ids)
-        if declarations_len < 2:
-            return 0
-        else:
-            declaration_sum = {}
-            id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
-            for i in range(declarations_len):
-                sum_of_assets = 0
-                for vehicle in Vehicle.objects.filter(
-                    declaration_id=id_sort_by_year[i][1][0],
-                ).values_list('valuation', flat=True):
-                    sum_of_assets += vehicle
-                total = 0
-                try:
-                    assets = Money.objects.filter(
-                        declaration_id=id_sort_by_year[i][1][0],
-                    ).values_list('amount', 'currency')[::1]
-                    for currency_pair in assets:
-                        assets_UAH = 0
-                        assets_USD = 0
-                        assets_EUR = 0
-                        assets_GBP = 0
-                        if currency_pair[1] == 'UAH':
-                            assets_UAH += currency_pair[0]
-                        elif currency_pair[1] == 'USD':
-                            assets_USD += currency_pair[0]
-                        elif currency_pair[1] == 'EUR':
-                            assets_EUR += currency_pair[0]
-                        else:
-                            assets_GBP += currency_pair[0]
-                        total = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-                except:
-                    pass
+    class DataSerializer(serializers.Serializer):
+        new_year = serializers.IntegerField(min_value=0, required=True)
+        old_sum = serializers.IntegerField(min_value=0, required=True)
+        new_sum = serializers.IntegerField(min_value=0, required=True)
 
-                declaration_sum[id_sort_by_year[i][0]] = total
-            for year in declaration_sum:
-                try:
-                    if declaration_sum[year] * 5 < declaration_sum[year + 1]:
-                        weight = 0.4
-                        data = {
-                            "first_year": year,
-                            "first_sum": declaration_sum[year],
-                            "second_sum": declaration_sum[year + 1],
-                        }
-                        return weight, data
-                except:
-                    pass
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
+
+        try:
+            old_declaration = Declaration.objects.filter(
+                pep_id=self.pep.id,
+                year=year - 1
+            ).values('id', 'year')[::1][0]
+        except:
+            return 0, {}
+        new_declaration = {'id': self.declaration.id, 'year': year}
+        declaration_sum = []
+        for declaration in (old_declaration, new_declaration):
+            id = declaration['id']
+            total = 0
+            for vehicle in Vehicle.objects.filter(
+                    declaration_id=id,
+            ).values_list('valuation', flat=True):
+                total += float(vehicle)
+            try:
+                assets = Money.objects.filter(
+                    declaration_id=id,
+                ).values_list('amount', 'currency')[::1]
+                for currency_pair in assets:
+                    assets_UAH = 0.0
+                    assets_USD = 0.0
+                    assets_EUR = 0.0
+                    assets_GBP = 0.0
+                    if currency_pair[1] == 'UAH':
+                        assets_UAH += float(currency_pair[0])
+                    elif currency_pair[1] == 'USD':
+                        assets_USD += float(currency_pair[0])
+                    elif currency_pair[1] == 'EUR':
+                        assets_EUR += float(currency_pair[0])
+                    elif currency_pair[1] == 'GBP':
+                        assets_GBP += float(currency_pair[0])
+                    total += assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+            except:
+                pass
+            declaration_sum.append(total)
+        if declaration_sum[0]*5<declaration_sum[1]:
+            weight = 0.4
+            data = {
+                "new_year": year,
+                "old_sum": declaration_sum[0],
+                "new_sum": declaration_sum[1],
+            }
+            return weight, data
         return 0, {}
