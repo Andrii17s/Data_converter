@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from django.utils import timezone
+from django.utils import timezone, convert_to_usd
 from rest_framework import serializers
 
 from business_register.models.declaration_models import (
@@ -16,6 +16,7 @@ from business_register.models.declaration_models import (
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
+from typing import Tuple as tuple
 
 
 class BaseScoringRule(ABC):
@@ -78,7 +79,6 @@ class IsSpendingMore(BaseScoringRule):
     def calculate_weight(self) -> tuple[int or float, dict]:
         assets_UAH = 0
         income_UAH = 0
-        print(self.declaration.id)
         incomes = Income.objects.filter(
             declaration_id=self.declaration.id,
         ).values_list('amount', 'type')[::1]
@@ -111,6 +111,7 @@ class IsSpendingMore(BaseScoringRule):
                 "income_UAH": income_UAH,
             }
             return weight, data
+        return 0, {}
 
 class IsRealEstateWithoutValue(BaseScoringRule):
     """
