@@ -174,7 +174,13 @@ class IsSpendingMore(BaseScoringRule):
     is smaller or equal to the expenditures indicated in the declaration
     """
 
-    def calculate_weight(self):
+    rule_id = ScoringRuleEnum.PEP13
+
+    class DataSerializer(serializers.Serializer):
+        vehicle_id = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
         declarations = Declaration.objects.filter(
             pep_id=self.pep.id,
         ).values('id', 'year')[::1]
