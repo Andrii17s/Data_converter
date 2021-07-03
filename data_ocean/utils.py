@@ -150,3 +150,21 @@ def replace_incorrect_symbols(string):
         .replace("''", '"')
     string = re.sub(r'\s+', ' ', string)
     return string
+
+
+def log_records(record, filename, index):
+    record_to_string = '\n' + str(index) + ' '
+    for element in record:
+        record_to_string += (element.tag or 'NONE') + ': ' + (element.text or 'None') + '; '
+    log = open(filename, 'a')
+    log.write(record_to_string)
+    log.close()
+
+
+#rates are on December, 31 from http://openexchange.org/
+def convert_to_usd(currency: str, amount: float, year: int):
+    from data_ocean.rates import rates_to_usd
+
+    year_rates = rates_to_usd.get(year)
+    rate = year_rates.get(currency)
+    return amount/rate
