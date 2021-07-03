@@ -173,24 +173,26 @@ class IsManyCars(BaseScoringRule):
     Declared ownership and/or right of use of more than 5 cars
     """
 
-    def calculate_weight(self):
+    rule_id = ScoringRuleEnum.PEP19
+
+    class DataSerializer(serializers.Serializer):
+        total_cars_have = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
         max_count = 5  # max amount of cars
-        declarations_id = Declaration.objects.filter(
+        have_car = Vehicle.objects.filter(
+            declaration=self.declaration.id,
+        ).count()
+        have_rights = VehicleRight.objects.filter(
             pep_id=self.pep.id,
-        ).values_list('id', flat=True)[::1]
-        for declaration_id in declarations_id:
-            have_car = Vehicle.objects.filter(
-                declaration=declaration_id,
-            ).count()
-            have_rights = VehicleRight.objects.filter(
-                pep_id=self.pep.id,
-            ).count()
-            total = have_car + have_rights
-            if total > max_count:
-                weight = 0.4
-                data = {
-                    "declaration_id": declaration_id,
-                    "total_cars_have": total,
-                }
-                return weight, data
+        ).count()
+        total = have_car + have_rights
+        if total > max_count:
+            weight = 0.4
+            data = {
+                "total_cars_have": total,
+                "declaration_id": self.declaration.id,
+            }
+            return weight, data
         return 0, {}
