@@ -180,6 +180,7 @@ class IsGettingRicher(BaseScoringRule):
         new_year = serializers.IntegerField(min_value=0, required=True)
         old_sum = serializers.IntegerField(min_value=0, required=True)
         new_sum = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         year = self.declaration.year
@@ -227,6 +228,7 @@ class IsGettingRicher(BaseScoringRule):
                 "new_year": year,
                 "old_sum": declaration_sum[0],
                 "new_sum": declaration_sum[1],
+                "declaration_id": self.declaration.id,
             }
             return weight, data
         return 0, {}
