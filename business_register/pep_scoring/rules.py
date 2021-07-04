@@ -213,9 +213,8 @@ class IsLiveNowhereRegion(BaseScoringRule):
 
     rule_id = ScoringRuleEnum.PEP04_reg
 
-
     class DataSerializer(serializers.Serializer):
-        live_in_region = serializers.CharField(min_length=1, max_length=30, required=True)
+        live_in_region = serializers.CharField(min_length=1, max_length=30)
         live_in_region_id = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
@@ -234,6 +233,7 @@ class IsLiveNowhereRegion(BaseScoringRule):
         if not property_cities:
             weight = 0.1
             data = {
+                "live_in_region_id": region_id,
                 "declaration_id": self.declaration.id,
             }
             return weight, data
