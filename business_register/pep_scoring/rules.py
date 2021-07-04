@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -16,7 +17,6 @@ from business_register.models.declaration_models import (
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
-from typing import Tuple as tuple
 
 
 class BaseScoringRule(ABC):
@@ -179,8 +179,8 @@ class IsMoneyFromNowhere(BaseScoringRule):
 
     class DataSerializer(serializers.Serializer):
         new_year = serializers.IntegerField(min_value=0, required=True)
-        old_sum = serializers.IntegerField(min_value=0, required=True)
-        new_sum = serializers.IntegerField(min_value=0, required=True)
+        old_sum_USD = serializers.IntegerField(min_value=0, required=True)
+        new_sum_USD = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
@@ -197,41 +197,31 @@ class IsMoneyFromNowhere(BaseScoringRule):
         declaration_sum = []
         for declaration in (old_declaration, new_declaration):
             declaration_id = declaration['id']
-            total_assets = 0
+            assets_USD = 0.0
+            income_UAH = 0.0
             try:
                 assets = Money.objects.filter(
                     declaration_id=declaration_id,
                 ).values_list('amount', 'currency')[::1]
                 for currency_pair in assets:
-                    assets_USD = 0.0
-                    assets_UAH = 0.0
-                    assets_EUR = 0.0
-                    assets_GBP = 0.0
-                    income_UAH = 0.0
-                    if currency_pair[1] == 'UAH':
-                        assets_UAH += float(currency_pair[0])
-                    elif currency_pair[1] == 'USD':
-                        assets_USD += float(currency_pair[0])
-                    elif currency_pair[1] == 'EUR':
-                        assets_EUR += float(currency_pair[0])
-                    elif currency_pair[1] == 'GBP':
-                        assets_GBP += float(currency_pair[0])
-                    incomes = Income.objects.filter(
-                        declaration_id=declaration_id,
-                    ).values_list('amount', 'type')[::1]
-                    for income in incomes:
-                        income_UAH += income[0]
-                    total_assets += assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+                    assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+                incomes = Income.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'type')[::1]
+                for income in incomes:
+                    income_UAH += income[0]
+                income_USD = convert_to_usd('UAH', income_UAH, year)
+                assets_USD += income_USD
             except:
                 pass
-            declaration_sum.append(total_assets)
-            declaration_sum.append(income_UAH)
+            declaration_sum.append(assets_USD)
+            declaration_sum.append(income_USD)
         if declaration_sum[0] + declaration_sum[1] < declaration_sum[2]:
             weight = 1.0
             data = {
                 "new_year": year,
-                "old_sum": declaration_sum[0] + declaration_sum[1],
-                "new_sum": declaration_sum[2],
+                "old_sum_USD": declaration_sum[0] + declaration_sum[1],
+                "new_sum_USD": declaration_sum[2],
                 "declaration_id": self.declaration.id,
             }
             return weight, data
