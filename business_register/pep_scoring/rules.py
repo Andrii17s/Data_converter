@@ -187,13 +187,13 @@ class IsNewCar(BaseScoringRule):
             declaration_id=self.declaration.id,
             created_at__year__gte=year,
             valuation__lte=price,
-        ).values_list('declaration_id', 'year', 'valuation')[::1]
+        ).values_list('year', 'valuation')[::1]
         if have_weight:
             weight = 0.8
             data = {
+                "car_producing_year": have_weight[0][0],
+                "car_valuation": have_weight[0][1],
                 "declaration_id": self.declaration.id,
-                "car_producing_year": have_weight[0][1],
-                "car_valuation": have_weight[0][2],
             }
             return weight, data
         return 0, {}
