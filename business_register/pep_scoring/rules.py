@@ -196,11 +196,11 @@ class IsMoneyFromNowhere(BaseScoringRule):
         new_declaration = {'id': self.declaration.id, 'year': year}
         declaration_sum = []
         for declaration in (old_declaration, new_declaration):
-            id = declaration['id']
+            declaration_id = declaration['id']
             total_assets = 0
             try:
                 assets = Money.objects.filter(
-                    declaration_id=id,
+                    declaration_id=declaration_id,
                 ).values_list('amount', 'currency')[::1]
                 for currency_pair in assets:
                     assets_USD = 0.0
@@ -217,7 +217,7 @@ class IsMoneyFromNowhere(BaseScoringRule):
                     elif currency_pair[1] == 'GBP':
                         assets_GBP += float(currency_pair[0])
                     incomes = Income.objects.filter(
-                        declaration_id=id,
+                        declaration_id=declaration_id,
                     ).values_list('amount', 'type')[::1]
                     for income in incomes:
                         income_UAH += income[0]
