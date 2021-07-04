@@ -177,7 +177,9 @@ class IsSpendingMore(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP13
 
     class DataSerializer(serializers.Serializer):
-        vehicle_id = serializers.IntegerField(min_value=0, required=True)
+        total_UAH = serializers.IntegerField(min_value=0, required=True)
+        expenditures_UAH = serializers.IntegerField(min_value=0, required=True)
+        year = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
@@ -188,8 +190,8 @@ class IsSpendingMore(BaseScoringRule):
 
         for declaration in declarations:
             year = declaration['year']
-            if not declaration_ids.__contains__(year):
-                declaration_ids[declaration['year']] = list()
+            if year not in declaration_ids:
+                declaration_ids[declaration['year']] = []
                 declaration_ids[declaration['year']].extend([declaration['id']])
             elif not declaration['id'] in declaration_ids[year]:
                 declaration_ids[year].extend([declaration['id']])
@@ -231,6 +233,7 @@ class IsSpendingMore(BaseScoringRule):
                         "total_UAH": total_UAH,
                         "expenditures_UAH": expenditures_UAH,
                         "year": declarations_by_year[0],
+                        "declaration_id": self.declaration.id,
                     }
                     return weight, data
         return 0, {}
