@@ -177,9 +177,9 @@ class IsLiveNowhereCity(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP04_adr
 
     class DataSerializer(serializers.Serializer):
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
         live_in_city = serializers.CharField(min_length=1, max_length=100, required=True)
         live_in_city_id = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
@@ -196,9 +196,9 @@ class IsLiveNowhereCity(BaseScoringRule):
             ).values_list('name', flat=True)[::1][0]
             weight = 0.7
             data = {
-                "declaration_id": self.declaration.id,
                 "live_in_city": city_name,
                 "live_in_city_id": city_id,
+                "declaration_id": self.declaration.id,
             }
             return weight, data
         return 0, {}
@@ -215,9 +215,9 @@ class IsLiveNowhereRegion(BaseScoringRule):
 
 
     class DataSerializer(serializers.Serializer):
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
         live_in_region = serializers.CharField(min_length=1, max_length=30, required=True)
         live_in_region_id = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
@@ -246,9 +246,9 @@ class IsLiveNowhereRegion(BaseScoringRule):
             ).values_list('name', flat=True)[::1][0]
             weight = 0.1
             data = {
-                "declaration_id": self.declaration.id,
                 "live_in_region_id": region_id,
                 "live_in_region": region_name,
+                "declaration_id": self.declaration.id,
             }
             return weight, data
         return 0, {}
