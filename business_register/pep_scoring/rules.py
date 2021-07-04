@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -171,18 +172,19 @@ class IsMultiplyingMoney(BaseScoringRule):
     Rule 22 - PEP22
     weight - 0.8
     Hard cash declared in the very first electronic asset declaration available in
-    the system  exceeds in 5 or more times income declared for the corresponding year
+    the system exceeds in 5 or more times income declared for the corresponding year
     """
 
     rule_id = ScoringRuleEnum.PEP22
 
     class DataSerializer(serializers.Serializer):
-        total_assets = serializers.IntegerField(min_value=0, required=True)
-        total_income = serializers.IntegerField(min_value=0, required=True)
+        assets_USD = serializers.IntegerField(min_value=0, required=True)
+        income_USD = serializers.IntegerField(min_value=0, required=True)
         year = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
         declarations = Declaration.objects.filter(
             pep_id=self.pep.id,
         ).values('id', 'year')[::1]
@@ -202,34 +204,24 @@ class IsMultiplyingMoney(BaseScoringRule):
         incomes = Income.objects.filter(
             declaration_id=id_sort_by_year[0][1][0],
         ).values_list('amount', flat=True)[::1]
-        total_income = 0
+        income_UAH = 0
         for income in incomes:
-            total_income += income
-        assets_UAH = 0
+            income_UAH += income
+        income_USD = convert_to_usd('UAH', income_UAH, year)
         assets_USD = 0
-        assets_EUR = 0
-        assets_GBP = 0
-        for asset in assets:
-            if asset[1] == 'UAH':
-                assets_UAH += float(asset[0])
-            elif asset[1] == 'USD':
-                assets_USD += float(asset[0])
-            elif asset[1] == 'EUR':
-                assets_EUR += float(asset[0])
-            else:
-                assets_GBP += float(asset[0])
-        total_assets = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH #!
+        for currency_pair in assets:
+            assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
 
         weight = 0.8
         data = {
-            "total_assets": total_assets,
-            "total_income": total_income,
+            "assets_USD": assets_USD,
+            "income_USD": income_USD,
             "year": id_sort_by_year[0][0],
             "declaration_id": id_sort_by_year[0][1][0]
 
         }
-        if total_income == 0 and total_assets != 0:
+        if income_USD == 0 and assets_USD != 0:
             return weight, data
-        if (total_assets / total_income) > 5:
+        if (assets_USD / income_USD) > 5:
             return weight, data
         return 0, {}
