@@ -16,7 +16,6 @@ from business_register.models.declaration_models import (
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
-from typing import Tuple as tuple
 
 
 class BaseScoringRule(ABC):
@@ -75,6 +74,7 @@ class IsSpendingMore(BaseScoringRule):
     class DataSerializer(serializers.Serializer):
         assets_UAH = serializers.IntegerField(min_value=0, required=True)
         income_UAH = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         assets_UAH = 0
@@ -109,6 +109,7 @@ class IsSpendingMore(BaseScoringRule):
             data = {
                 "assets_UAH": assets_UAH,
                 "income_UAH": income_UAH,
+                "declaration_id": self.declaration.id,
             }
             return weight, data
         return 0, {}
