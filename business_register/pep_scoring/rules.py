@@ -194,15 +194,15 @@ class IsGettingRicher(BaseScoringRule):
         new_declaration = {'id': self.declaration.id, 'year': year}
         declaration_sum = []
         for declaration in (old_declaration, new_declaration):
-            id = declaration['id']
+            declaration_id = declaration['id']
             total = 0
             for vehicle in Vehicle.objects.filter(
-                    declaration_id=id,
+                    declaration_id=declaration_id,
             ).values_list('valuation', flat=True):
                 total += float(vehicle)
             try:
                 assets = Money.objects.filter(
-                    declaration_id=id,
+                    declaration_id=declaration_id,
                 ).values_list('amount', 'currency')[::1]
                 for currency_pair in assets:
                     assets_UAH = 0.0
@@ -221,7 +221,7 @@ class IsGettingRicher(BaseScoringRule):
             except:
                 pass
             declaration_sum.append(total)
-        if declaration_sum[0]*5<declaration_sum[1]:
+        if declaration_sum[0]*5 < declaration_sum[1]:
             weight = 0.4
             data = {
                 "new_year": year,
