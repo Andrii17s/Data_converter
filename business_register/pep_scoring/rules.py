@@ -173,10 +173,10 @@ class IsWinningLottery(BaseScoringRule):
     Declared lottery winning or prize with a price of more than 10 000 UAH
     """
 
-    rule_id = ScoringRuleEnum.PEP03_car
+    rule_id = ScoringRuleEnum.PEP16
 
     class DataSerializer(serializers.Serializer):
-        prize_prise_UAH = serializers.IntegerField(min_value=0, required=True)
+        prize_price_UAH = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
@@ -188,7 +188,7 @@ class IsWinningLottery(BaseScoringRule):
             if income[1] == Income.PRIZE and income[0] > prize_max_amount:
                 weight = 1.0
                 data = {
-                    "prize_prise_UAH": income[0],
+                    "prize_price_UAH": income[0],
                     "declaration_id": self.declaration.id,
                 }
                 return weight, data
