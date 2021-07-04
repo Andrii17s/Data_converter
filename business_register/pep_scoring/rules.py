@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -187,6 +188,7 @@ class IsSpendingMore(BaseScoringRule):
             pep_id=self.pep.id,
         ).values('id', 'year')[::1]
         declaration_ids = {}
+        year = self.declaration.year
 
         for declaration in declarations:
             year = declaration['year']
@@ -197,8 +199,8 @@ class IsSpendingMore(BaseScoringRule):
                 declaration_ids[year].extend([declaration['id']])
 
         for declarations_by_year in declaration_ids.items():
-            assets_UAH = 0
             income_UAH = 0
+            assets_USD = 0
             expenditures_UAH = 0  # !
             for declaration_id in declarations_by_year[1]:
                 incomes = Income.objects.filter(
@@ -206,31 +208,20 @@ class IsSpendingMore(BaseScoringRule):
                 ).values_list('amount', 'type')[::1]
                 for income in incomes:
                     income_UAH += income[0]
+                income_USD = convert_to_usd('UAH', income_UAH, year)
                 try:
                     assets = Money.objects.filter(
                         declaration_id=declaration_id,
                     ).values_list('amount', 'currency')[::1]
-                    assets_UAH = 0
-                    assets_USD = 0
-                    assets_EUR = 0
-                    assets_GBP = 0
                     for currency_pair in assets:
-                        if currency_pair[1] == 'UAH':
-                            assets_UAH += currency_pair[0]
-                        elif currency_pair[1] == 'USD':
-                            assets_USD += currency_pair[0]
-                        elif currency_pair[1] == 'EUR':
-                            assets_EUR += currency_pair[0]
-                        else:
-                            assets_GBP += currency_pair[0]
-                        assets_UAH = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+                        assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
                 except:
                     pass
-                total_UAH = assets_UAH + income_UAH
-                if total_UAH < expenditures_UAH:
+                total_USD = assets_USD + income_USD
+                if total_USD < expenditures_UAH:
                     weight = 0.7
                     data = {
-                        "total_UAH": total_UAH,
+                        "total_UAH": total_USD,
                         "expenditures_UAH": expenditures_UAH,
                         "year": declarations_by_year[0],
                         "declaration_id": self.declaration.id,
