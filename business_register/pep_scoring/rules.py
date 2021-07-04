@@ -17,7 +17,6 @@ from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
 
-
 class BaseScoringRule(ABC):
     rule_id = None
 
@@ -180,15 +179,17 @@ class IsManyCars(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
         max_count = 5  # max amount of cars
         have_car = Vehicle.objects.filter(
             declaration=self.declaration.id,
         ).count()
         have_rights = VehicleRight.objects.filter(
             pep_id=self.pep.id,
+            acquisition_date__year=year,
         ).count()
         total = have_car + have_rights
-        if total > max_count:
+        if total < max_count:
             weight = 0.4
             data = {
                 "total_cars_have": total,
