@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -176,12 +177,12 @@ class IsCashTotalAmount(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP20
 
     class DataSerializer(serializers.Serializer):
-        count = serializers.IntegerField(min_value=0, required=True)
+        assets_USD = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        max_sum = 1500000  # max amount of cash
         year = self.declaration.year
+        max_sum = convert_to_usd('UAH', 1500000, year)  # max amount of cash
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -190,29 +191,17 @@ class IsCashTotalAmount(BaseScoringRule):
             year=year,
             pep_id__in=family_ids,
         ).values_list('id', flat=True)[::1]
-        assets_UAH = 0
         assets_USD = 0
-        assets_EUR = 0
-        assets_GBP = 0
-        total = 0
         for declaration_id in declarations:
             assets = Money.objects.filter(
                 declaration_id=declaration_id,
             ).values_list('amount', 'currency')[::1]
             for currency_pair in assets:
-                if currency_pair[1] == 'UAH':
-                    assets_UAH += float(currency_pair[0])
-                elif currency_pair[1] == 'USD':
-                    assets_USD += float(currency_pair[0])
-                elif currency_pair[1] == 'EUR':
-                    assets_EUR += float(currency_pair[0])
-                else:
-                    assets_GBP += float(currency_pair[0])
-            total += assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-        if total > max_sum:
+                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+        if assets_USD > max_sum:
             weight = 0.8
             data = {
-                "count": total,
+                "assets_USD": assets_USD,
                 "declaration_id": self.declaration.id,
             }
             return weight, data
