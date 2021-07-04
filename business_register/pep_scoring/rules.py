@@ -77,6 +77,7 @@ class IsRealEstateWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -86,6 +87,7 @@ class IsRealEstateWithoutValue(BaseScoringRule):
             property__valuation__isnull=True,
             type=Property.SUMMER_HOUSE,
             acquisition_date__year__gte=2015,
+            property__declaration__year=year,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
             weight = 0.4
@@ -112,6 +114,7 @@ class IsLandWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -121,6 +124,7 @@ class IsLandWithoutValue(BaseScoringRule):
             property__valuation__isnull=True,
             type=Property.LAND,
             acquisition_date__year__gte=2015,
+            property__declaration__year=year,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
             weight = 0.1
@@ -147,6 +151,7 @@ class IsAutoWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -155,6 +160,7 @@ class IsAutoWithoutValue(BaseScoringRule):
             pep_id__in=family_ids,
             car__valuation__isnull=True,
             acquisition_date__year__gte=2015,
+            property__declaration__year=year,
         ).values_list('car_id', 'car__declaration_id')[::1]
         if have_weight:
             weight = 0.4
