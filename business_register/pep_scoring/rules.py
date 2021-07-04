@@ -16,6 +16,7 @@ from business_register.models.declaration_models import (
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
+from typing import Tuple as tuple
 
 
 class BaseScoringRule(ABC):
@@ -174,74 +175,64 @@ class IsMoneyFromNowhere(BaseScoringRule):
     income and amount of monetary assets of the previous year
     """
 
-    def calculate_weight(self):
-        declarations = Declaration.objects.filter(
-            pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
-        declaration_ids = {}
+    rule_id = ScoringRuleEnum.PEP21
 
-        for declaration in declarations:
-            year = declaration['year']
-            if not declaration_ids.__contains__(year):
-                declaration_ids[declaration['year']] = list()
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
-        declarations_len = len(declaration_ids)
-        if declarations_len < 2:
-            return 0
-        else:
-            declaration_sum = {}
-            id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
-            for i in range(declarations_len):
-                sum_of_assets = 0
-                try:
-                    for vehicle in Vehicle.objects.filter(
-                        declaration_id=id_sort_by_year[i][1][0],
-                    ).values_list('valuation', flat=True)[::1]:
-                        sum_of_assets += vehicle
-                except:
-                    pass
-                income_UAH = 0
-                incomes = Income.objects.filter(
-                    declaration_id=id_sort_by_year[i][1][0],
-                ).values_list('amount', flat=True)[::1]
-                for income in incomes:
-                    income_UAH += income
+    class DataSerializer(serializers.Serializer):
+        new_year = serializers.IntegerField(min_value=0, required=True)
+        old_sum = serializers.IntegerField(min_value=0, required=True)
+        new_sum = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
-                try:
-                    assets = Money.objects.filter(
-                        declaration_id=id_sort_by_year[i][1][0],
-                    ).values_list('amount', 'currency')[::1]
-                    for currency_pair in assets:
-                        assets_UAH = 0
-                        assets_USD = 0
-                        assets_EUR = 0
-                        assets_GBP = 0
-                        if currency_pair[1] == 'UAH':
-                            assets_UAH += currency_pair[0]
-                        elif currency_pair[1] == 'USD':
-                            assets_USD += currency_pair[0]
-                        elif currency_pair[1] == 'EUR':
-                            assets_EUR += currency_pair[0]
-                        else:
-                            assets_GBP += currency_pair[0]
-                        total = assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
-                except:
-                    pass
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
 
-                declaration_sum[id_sort_by_year[i][0]] = [total, income_UAH]
-            for year in declaration_sum:
-                try:
-                    if not declaration_sum[year][0] + declaration_sum[year][1] < declaration_sum[year+1][0]:
-                        weight = 1.0
-                        data = {
-                            "first_year": year,
-                            "assets_first_year": declaration_sum[year][0],
-                            "income": declaration_sum[year][1],
-                            "assets_second_year": declaration_sum[year+1][0],
-                        }
-                        return weight, data
-                except:
-                    pass
+        try:
+            old_declaration = Declaration.objects.filter(
+                pep_id=self.pep.id,
+                year=year - 1
+            ).values('id', 'year')[::1][0]
+        except:
+            return 0, {}
+        new_declaration = {'id': self.declaration.id, 'year': year}
+        declaration_sum = []
+        for declaration in (old_declaration, new_declaration):
+            id = declaration['id']
+            total_assets = 0
+            try:
+                assets = Money.objects.filter(
+                    declaration_id=id,
+                ).values_list('amount', 'currency')[::1]
+                for currency_pair in assets:
+                    assets_USD = 0.0
+                    assets_UAH = 0.0
+                    assets_EUR = 0.0
+                    assets_GBP = 0.0
+                    income_UAH = 0.0
+                    if currency_pair[1] == 'UAH':
+                        assets_UAH += float(currency_pair[0])
+                    elif currency_pair[1] == 'USD':
+                        assets_USD += float(currency_pair[0])
+                    elif currency_pair[1] == 'EUR':
+                        assets_EUR += float(currency_pair[0])
+                    elif currency_pair[1] == 'GBP':
+                        assets_GBP += float(currency_pair[0])
+                    incomes = Income.objects.filter(
+                        declaration_id=id,
+                    ).values_list('amount', 'type')[::1]
+                    for income in incomes:
+                        income_UAH += income[0]
+                    total_assets += assets_USD * 27 + assets_EUR * 32.7 + assets_GBP * 38 + assets_UAH  # !
+            except:
+                pass
+            declaration_sum.append(total_assets)
+            declaration_sum.append(income_UAH)
+        if declaration_sum[0] + declaration_sum[1] < declaration_sum[2]:
+            weight = 1.0
+            data = {
+                "new_year": year,
+                "old_sum": declaration_sum[0] + declaration_sum[1],
+                "new_sum": declaration_sum[2],
+                "declaration_id": self.declaration.id,
+            }
+            return weight, data
         return 0, {}
