@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
-
+from typing import Tuple as tuple
 from business_register.models.declaration_models import (
     Declaration,
     Property,
@@ -89,12 +89,15 @@ class IsRealEstateWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
+                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
         property_types = [Property.SUMMER_HOUSE, Property.HOUSE, Property.APARTMENT, Property.ROOM,
                           Property.GARAGE, Property.UNFINISHED_CONSTRUCTION, Property.OTHER, Property.OFFICE]
         have_weight = PropertyRight.objects.filter(
             property__declaration_id=self.declaration.id,
+            type__in=right_types,
             property__valuation__isnull=True,
-            type__in=property_types,
+            property__type__in=property_types,
             acquisition_date__year__gte=2015,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
@@ -123,10 +126,13 @@ class IsLandWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
+                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
         have_weight = PropertyRight.objects.filter(
             property__declaration_id=self.declaration.id,
             property__valuation__isnull=True,
-            type=Property.LAND,
+            type__in=right_types,
+            property__type=Property.LAND,
             acquisition_date__year__gte=2015,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
@@ -155,9 +161,12 @@ class IsAutoWithoutValue(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
+        right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
+                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
         have_weight = VehicleRight.objects.filter(
             car__declaration_id=self.declaration.id,
             car__valuation__isnull=True,
+            type__in=right_types,
             acquisition_date__year__gte=2015,
         ).values_list('car_id', 'car__declaration_id')[::1]
         if have_weight:
