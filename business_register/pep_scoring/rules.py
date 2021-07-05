@@ -183,17 +183,16 @@ class IsVeryCreative(BaseScoringRule):
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        activity_types = [Income.PART_TIME_SALARY, Income.BUSINESS]
         assets_UAH = 0
         creative_income_UAH = 0
         incomes = Income.objects.filter(
             declaration_id=self.declaration.id,
-        ).values_list('amount', 'type')[::1]
+        ).values_list('amount', 'type', 'declaration__part_time_jobs__description')[::1]
         for income in incomes:
             assets_UAH += income[0]
-            if income[1] in activity_types:
+            if income[1] == Income.PART_TIME_SALARY or income[2] is None:
                 creative_income_UAH += income[0]
-        if creative_income_UAH < assets_UAH * 0.3:
+        if creative_income_UAH > assets_UAH * 0.3:
             weight = 0.2
             data = {
                 "creative_income_UAH": creative_income_UAH,
