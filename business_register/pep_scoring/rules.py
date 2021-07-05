@@ -73,11 +73,10 @@ class IsRealEstateWithoutValue(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP03_home
 
     class DataSerializer(serializers.Serializer):
-        property_id = serializers.IntegerField(min_value=0, required=True)
+        property_count = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -87,12 +86,12 @@ class IsRealEstateWithoutValue(BaseScoringRule):
             property__valuation__isnull=True,
             type=Property.SUMMER_HOUSE,
             acquisition_date__year__gte=2015,
-            property__declaration__year=year,
+            property__declaration__year=self.declaration.year,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
             weight = 0.4
             data = {
-                "property_id": have_weight[0][0],
+                "property_count": len(have_weight),
                 "declaration_id": have_weight[0][1],
             }
             return weight, data
@@ -110,11 +109,10 @@ class IsLandWithoutValue(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP03_land
 
     class DataSerializer(serializers.Serializer):
-        property_id = serializers.IntegerField(min_value=0, required=True)
+        property_count = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -124,12 +122,12 @@ class IsLandWithoutValue(BaseScoringRule):
             property__valuation__isnull=True,
             type=Property.LAND,
             acquisition_date__year__gte=2015,
-            property__declaration__year=year,
+            property__declaration__year=self.declaration.year,
         ).values_list('property_id', 'property__declaration_id')[::1]
         if have_weight:
             weight = 0.1
             data = {
-                "property_id": have_weight[0][0],
+                "property_count": len(have_weight),
                 "declaration_id": have_weight[0][1],
             }
             return weight, data
@@ -147,11 +145,10 @@ class IsAutoWithoutValue(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP03_car
 
     class DataSerializer(serializers.Serializer):
-        vehicle_id = serializers.IntegerField(min_value=0, required=True)
+        vehicle_count = serializers.IntegerField(min_value=0, required=True)
         declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        year = self.declaration.year
         family_ids = self.pep.related_persons.filter(
             to_person_links__category=RelatedPersonsLink.FAMILY,
         ).values_list('id', flat=True)[::1]
@@ -160,12 +157,12 @@ class IsAutoWithoutValue(BaseScoringRule):
             pep_id__in=family_ids,
             car__valuation__isnull=True,
             acquisition_date__year__gte=2015,
-            property__declaration__year=year,
+            property__declaration__year=self.declaration.year,
         ).values_list('car_id', 'car__declaration_id')[::1]
         if have_weight:
             weight = 0.4
             data = {
-                "vehicle_id": have_weight[0][0],
+                "vehicle_count": len(have_weight),
                 "declaration_id": have_weight[0][1],
             }
             return weight, data
