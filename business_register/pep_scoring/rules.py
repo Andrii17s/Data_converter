@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -71,6 +72,50 @@ class BaseScoringRule(ABC):
     @abstractmethod
     def calculate_weight(self) -> tuple[int or float, dict]:
         pass
+
+@register_rule
+class IsSpendingMore(BaseScoringRule):
+    """
+    Rule 2 - PEP02
+    weight - 0.4
+    The overall value of the property and assets exceeds income 10 or more times for the current year
+    """
+
+    rule_id = ScoringRuleEnum.PEP02
+
+    class DataSerializer(serializers.Serializer):
+        assets_USD = serializers.IntegerField(min_value=0, required=True)
+        income_USD = serializers.IntegerField(min_value=0, required=True)
+        declaration_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        assets_USD = 0
+        income_UAH = 0
+        year = self.declaration.year
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type')[::1]
+        for income in incomes:
+            income_UAH += income[0]
+        income_USD = convert_to_usd('UAH', income_UAH, year)
+        try:
+            assets = Money.objects.filter(
+                declaration_id=self.declaration.id,
+            ).values_list('amount', 'currency')[::1]
+            assets_USD = 0
+            for currency_pair in assets:
+                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+        except:
+            pass
+        if assets_USD > income_USD * 10:
+            weight = 0.4
+            data = {
+                "assets_USD": assets_USD,
+                "income_USD": income_USD,
+                "declaration_id": self.declaration.id,
+            }
+            return weight, data
+        return 0, {}
 
 
 @register_rule
