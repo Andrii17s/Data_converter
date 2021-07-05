@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from django.utils import timezone
-from data_ocean.utils import convert_to_usd
 from rest_framework import serializers
 
 from business_register.models.declaration_models import (
@@ -17,6 +16,14 @@ from business_register.models.declaration_models import (
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.constants import ScoringRuleEnum
 from location_register.models.ratu_models import RatuCity
+
+
+ALL_RULES = {}
+
+
+def register_rule(class_):
+    ALL_RULES[class_.rule_id.value] = class_
+    return class_
 
 
 class BaseScoringRule(ABC):
@@ -41,21 +48,24 @@ class BaseScoringRule(ABC):
 
     def calculate_with_validation(self) -> tuple[int or float, dict]:
         weight, data = self.calculate_weight()
-        self.validate_data(data)
-        self.validate_weight(weight)
+        if weight != 0:
+            self.validate_data(data)
+            self.validate_weight(weight)
         self.weight = weight
         self.data = data
         return weight, data
 
     def save_to_db(self):
-        assert self.weight and self.data
-        PepScoring.objects.create(
+        assert self.weight is not None and self.data is not None
+        PepScoring.objects.update_or_create(
             declaration=self.declaration,
             pep=self.pep,
             rule_id=self.rule_id,
-            calculation_date=timezone.localdate(),
-            score=self.weight,
-            data=self.data,
+            defaults={
+                'data': self.data,
+                'score': self.weight,
+                'calculation_datetime': timezone.now(),
+            }
         )
 
     @abstractmethod
@@ -63,50 +73,7 @@ class BaseScoringRule(ABC):
         pass
 
 
-class IsSpendingMore(BaseScoringRule):
-    """
-    Rule 2 - PEP02
-    weight - 0.4
-    The overall value of the property and assets exceeds income 10 or more times for the current year
-    """
-
-    rule_id = ScoringRuleEnum.PEP02
-
-    class DataSerializer(serializers.Serializer):
-        assets_USD = serializers.IntegerField(min_value=0, required=True)
-        income_USD = serializers.IntegerField(min_value=0, required=True)
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
-
-    def calculate_weight(self) -> tuple[int or float, dict]:
-        assets_USD = 0
-        income_UAH = 0
-        income_USD = 0
-        year = self.declaration.year
-        incomes = Income.objects.filter(
-            declaration_id=self.declaration.id,
-        ).values_list('amount', 'type')[::1]
-        for income in incomes:
-            income_UAH += income[0]
-        income_USD = convert_to_usd('UAH', income_UAH, year)
-        try:
-            assets = Money.objects.filter(
-                declaration_id=self.declaration.id,
-            ).values_list('amount', 'currency')[::1]
-            assets_USD = 0
-            for currency_pair in assets:
-                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
-        except:
-            pass
-        if assets_USD > income_USD * 10:
-            weight = 0.4
-            data = {
-                "assets_USD": assets_USD,
-                "income_USD": income_USD,
-                "declaration_id": self.declaration.id,
-            }
-            return weight, data
-        return 0, {}
-
+@register_rule
 class IsRealEstateWithoutValue(BaseScoringRule):
     """
     Rule 3.1 - PEP03_home
@@ -142,6 +109,7 @@ class IsRealEstateWithoutValue(BaseScoringRule):
         return 0, {}
 
 
+@register_rule
 class IsLandWithoutValue(BaseScoringRule):
     """
     Rule 3.2 - PEP03_land
@@ -177,6 +145,7 @@ class IsLandWithoutValue(BaseScoringRule):
         return 0, {}
 
 
+@register_rule
 class IsAutoWithoutValue(BaseScoringRule):
     """
     Rule 3.3 - PEP03_car
@@ -209,3 +178,4 @@ class IsAutoWithoutValue(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
