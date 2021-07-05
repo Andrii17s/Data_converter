@@ -174,7 +174,7 @@ class IsVeryCreative(BaseScoringRule):
     exceeds 30% of the total income indicated in the declaration
     """
 
-    rule_id = ScoringRuleEnum.PEP11
+    rule_id = ScoringRuleEnum.PEP10
 
     class DataSerializer(serializers.Serializer):
         creative_income_UAH = serializers.IntegerField(min_value=0, required=True)
