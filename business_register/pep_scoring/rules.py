@@ -269,10 +269,10 @@ class IsMoneyFromNowhere(BaseScoringRule):
 
     class DataSerializer(serializers.Serializer):
         new_year = serializers.IntegerField(min_value=0, required=True)
-        old_sum_USD = serializers.IntegerField(min_value=0, required=True)
-        new_sum_USD = serializers.IntegerField(min_value=0, required=True)
+        old_sum_USD = serializers.FloatField(min_value=0, required=True)
+        new_sum_USD = serializers.FloatField(min_value=0, required=True)
 
-    def calculate_weight(self) -> tuple[int or float, dict]:
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
         year = self.declaration.year
 
         try:
