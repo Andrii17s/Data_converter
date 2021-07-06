@@ -228,6 +228,91 @@ class IsAutoWithoutValue(BaseScoringRule):
 
 
 @register_rule
+class IsLiveNowhereCity(BaseScoringRule):
+    """
+    Rule 4.1 - PEP04_adr
+    weight - 0.7
+    There is no information on the real estate or apartment in the city, which indicated as PEP's place of residence
+    """
+
+    rule_id = ScoringRuleEnum.PEP04_adr
+
+    class DataSerializer(serializers.Serializer):
+        live_in_city = serializers.CharField(min_length=1, max_length=100, required=True)
+        live_in_city_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        city_id = Declaration.objects.filter(
+            id=self.declaration.id,
+        ).values_list('city_of_residence_id', flat=True)[::1][0]
+        property_cities = Property.objects.filter(
+            declaration=self.declaration.id,
+            type__in=property_types,
+        ).values_list('city_id', flat=True)[::1]
+        if city_id not in property_cities:
+            city_name = RatuCity.objects.filter(
+                id=city_id
+            ).values_list('name', flat=True)[::1][0]
+            weight = 0.7
+            data = {
+                "live_in_city": city_name,
+                "live_in_city_id": city_id,
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsLiveNowhereRegion(BaseScoringRule):
+    """
+    Rule 4.2 - PEP04_reg
+    weight - 0.1
+    There is no information on the real estate or apartment in the region, which indicated as PEP's place of residence
+    """
+
+    rule_id = ScoringRuleEnum.PEP04_reg
+
+    class DataSerializer(serializers.Serializer):
+        live_in_region = serializers.CharField(min_length=1, max_length=30)
+        live_in_region_id = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        property_types = [Property.HOUSE, Property.SUMMER_HOUSE, Property.APARTMENT, Property.ROOM]
+        city_id = Declaration.objects.filter(
+            id=self.declaration.id,
+        ).values_list('city_of_residence_id', flat=True)[::1][0]
+        region_id = RatuCity.objects.filter(
+            id=city_id,
+        ).values_list('region_id', flat=True)[::1][0]
+        property_cities = Property.objects.filter(
+            declaration=self.declaration.id,
+            type__in=property_types,
+        ).values_list('city_id', flat=True)[::1]
+        if not property_cities:
+            weight = 0.1
+            data = {
+                "live_in_region_id": region_id,
+                "declaration_id": self.declaration.id,
+            }
+            return weight, data
+        property_regions = RatuCity.objects.filter(
+            id__in=property_cities,
+        ).values_list('region_id', flat=True)[::1]
+        if region_id not in property_regions:
+            region_name = RatuRegion.objects.filter(
+                id=city_id
+            ).values_list('name', flat=True)[::1][0]
+            weight = 0.1
+            data = {
+                "live_in_region_id": region_id,
+                "live_in_region": region_name,
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
 class IsCostlyPresents(BaseScoringRule):
     """
     Rule 15 - PEP15
