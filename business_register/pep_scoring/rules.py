@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Union
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -220,6 +221,64 @@ class IsAutoWithoutValue(BaseScoringRule):
             data = {
                 "vehicle_id": have_weight[0][0],
                 "declaration_id": have_weight[0][1],
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsGettingRicher(BaseScoringRule):
+    """
+    Rule 5 - PEP05
+    weight - 0.4
+    PEP declared that the overall value of the movable and immovable property and
+    hard cash increased 5 times compared to the declaration for the previous year
+    """
+
+    rule_id = ScoringRuleEnum.PEP05
+
+    class DataSerializer(serializers.Serializer):
+        new_year = serializers.IntegerField(min_value=0, required=True)
+        old_sum_USD = serializers.IntegerField(min_value=0, required=True)
+        new_sum_USD = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        year = self.declaration.year
+
+        try:
+            old_declaration = Declaration.objects.filter(
+                pep_id=self.pep.id,
+                year=year - 1
+            ).values('id', 'year')[::1][0]
+        except:
+            return 0, {}
+        new_declaration = {'id': self.declaration.id, 'year': year}
+        declaration_sum = []
+        for declaration in (old_declaration, new_declaration):
+            declaration_id = declaration['id']
+            total = 0.0
+            for vehicle in Vehicle.objects.filter(
+                    declaration_id=declaration_id,
+            ).values_list('valuation', flat=True):
+                try:
+                    total += convert_to_usd('UAH', float(vehicle), year)
+                except:
+                    pass
+            try:
+                assets = Money.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'currency')[::1]
+                for currency_pair in assets:
+                    total += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+            except:
+                pass
+            declaration_sum.append(total)
+        if declaration_sum[0] * 5 < declaration_sum[1]:
+            weight = 0.4
+            data = {
+                "new_year": year,
+                "old_sum_USD": declaration_sum[0],
+                "new_sum_USD": declaration_sum[1],
             }
             return weight, data
         return 0, {}
