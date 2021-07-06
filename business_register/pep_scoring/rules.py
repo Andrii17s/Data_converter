@@ -288,6 +288,7 @@ class IsMoneyFromNowhere(BaseScoringRule):
             declaration_id = declaration['id']
             assets_USD = 0.0
             income_UAH = 0.0
+            income_USD = 0.0
             try:
                 assets = Money.objects.filter(
                     declaration_id=declaration_id,
