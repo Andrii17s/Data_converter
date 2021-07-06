@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Union
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -13,6 +14,7 @@ from business_register.models.declaration_models import (
     Money,
     PropertyRight,
     PepScoring,
+    Transaction,
 )
 from business_register.models.pep_models import (RelatedPersonsLink, Pep)
 from business_register.pep_scoring.rules_registry import register_rule, ScoringRuleEnum
@@ -222,6 +224,68 @@ class IsAutoWithoutValue(BaseScoringRule):
             data = {
                 "vehicle_id": have_weight[0][0],
                 "declaration_id": have_weight[0][1],
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsBigExpenditures(BaseScoringRule):
+    """
+    Rule 13 - PEP13
+    weight - 0.7
+    The overall amount of income and monetary assets indicated in the declaration
+    is smaller or equal to the expenditures indicated in the declaration
+    """
+
+    rule_id = ScoringRuleEnum.PEP13
+
+    class DataSerializer(serializers.Serializer):
+        total_USD = serializers.FloatField(min_value=0, required=True)
+        expenditures_USD = serializers.FloatField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        year = self.declaration.year
+
+        income_UAH = 0
+        assets_USD = 0
+        expenditures_UAH = 0
+        expenditures_USD = 0
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type')[::1]
+        for income in incomes:
+            try:
+                income_UAH += income[0]
+            except:
+                pass
+        income_USD = convert_to_usd('UAH', float(income_UAH), year)
+        try:
+            assets = Money.objects.filter(
+                declaration_id=self.declaration.id,
+            ).values_list('amount', 'currency')[::1]
+            for currency_pair in assets:
+                try:
+                    assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+                except:
+                    pass
+                expenditures = Transaction.objects.filter(
+                    declaration_id=self.declaration.id,
+                    ).values_list('amount')[::1]
+                for expenditure in expenditures:
+                    try:
+                        expenditures_UAH += expenditure
+                    except:
+                        pass
+                    expenditures_USD = convert_to_usd('UAH', float(expenditures_UAH), year)
+        except:
+            pass
+        total_USD = assets_USD + income_USD
+        if total_USD <= expenditures_USD:
+            weight = 0.7
+            data = {
+                "total_USD": total_USD,
+                "expenditures_USD": expenditures_USD,
             }
             return weight, data
         return 0, {}
