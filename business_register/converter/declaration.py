@@ -44,11 +44,7 @@ class DeclarationConverter(BusinessConverter):
             is_pep=True,
             nacp_id__len__gt=0
         ) for nacp_id in pep.nacp_id}
-        self.all_declarations = self.put_objects_to_dict(
-            'nacp_declaration_id',
-            'business_register',
-            'Declaration'
-        )
+        self.all_declarations = {str(obj.nacp_declaration_id): obj for obj in Declaration.objects.all()}
         self.NO_DATA = {
             None,
             '',
@@ -58,6 +54,7 @@ class DeclarationConverter(BusinessConverter):
             '[Конфіденційна інформація]',
             'Не визначено',
             'невідомо',
+            'ст. 5 ЗУ Про захист персональних даних',
         }
         self.BOOLEAN_VALUES = {
             '1': True,
@@ -189,6 +186,11 @@ class DeclarationConverter(BusinessConverter):
         return owner_type, full_name, company, company_name
 
     def save_right(self, property, corporate_rights_data):
+        if (
+                not corporate_rights_data.get('rights')
+                or corporate_rights_data.get('person') in self.NO_DATA
+        ):
+            return
         TYPES = {
             'Власність': BaseRight.OWNERSHIP,
             'Спільна власність': BaseRight.JOINT_OWNERSHIP,
@@ -200,7 +202,8 @@ class DeclarationConverter(BusinessConverter):
              'ЗУ «Про запобігання корупції»'): BaseRight.BENEFICIAL_OWNERSHIP,
             "[Член сім'ї не надав інформацію]": BaseRight.NO_INFO_FROM_FAMILY_MEMBER,
         }
-        acquisition_date = corporate_rights_data.get('owningDate') if corporate_rights_data.get('owningDate') not in self.NO_DATA else None
+        acquisition_date = corporate_rights_data.get('owningDate') if corporate_rights_data.get(
+            'owningDate') not in self.NO_DATA else None
         if acquisition_date:
             acquisition_date = simple_format_date_to_yymmdd(acquisition_date)
             if len(acquisition_date) < 10:
@@ -219,7 +222,6 @@ class DeclarationConverter(BusinessConverter):
         }
         rights_data = corporate_rights_data.get('rights')
         if rights_data:
-            owner_type = None
             for right_data in rights_data:
                 type = TYPES.get(right_data.get('ownershipType'))
                 additional_info = right_data.get('otherOwnership', '')
@@ -257,7 +259,7 @@ class DeclarationConverter(BusinessConverter):
                                 'owner_type': owner_type,
                             }
                             apps.get_model('business_register', model_name).objects.create(
-                                    **field_dict
+                                **field_dict
                             )
         else:
             owner_info = corporate_rights_data.get('person')
@@ -619,6 +621,10 @@ class DeclarationConverter(BusinessConverter):
             if owner_id not in self.NO_DATA:
                 if owner_id == '1':
                     owner = declaration.pep
+                # TODO: store records with OTHER_PERSON here and check other methods (definitely save_money)
+                elif owner_id == self.OTHER_PERSON:
+                    self.log_error(f'Check liability data ({data})')
+                    continue
                 else:
                     owner = self.find_person(owner_id)
             if not owner:
@@ -844,7 +850,6 @@ class DeclarationConverter(BusinessConverter):
                     owner=owner
                 )
 
-
     # possible_keys = {
     #     'source_eng_company_code', 'source_ukr_regAddress', 'incomeSource', 'source_ukr_fullname', 'source_citizen',
     #     'source_ua_taxNumber', 'source_ua_actualAddress', 'source_ukr_middlename', 'sizeIncome_extendedstatus',
@@ -901,15 +906,7 @@ class DeclarationConverter(BusinessConverter):
             else:
                 income_type = types.get(data.get('objectType'))
             additional_info = data.get('otherObjectType', '')
-            amount = data.get('sizeIncome')
-            if amount not in self.NO_DATA:
-                amount = int(amount)
-                if amount > 2147483647:
-                    self.log_error(f'Wrong value for amount = {amount}. Check income data {data}')
-                    amount = None
-            # TODO: decide what to do when value == '[Член сім\'ї не надав інформацію]'
-            else:
-                amount = None
+            amount = self.to_float(data.get('sizeIncome'), data)
 
             # examples of the value: 'Юридична особа, зареєстрована в Україні',
             # 'Юридична особа, зареєстрована за кордоном', 'Громадянин України'
@@ -1004,7 +1001,6 @@ class DeclarationConverter(BusinessConverter):
 
             # TODO: discover  'iteration'. Example of the value '1614443380219'
             iteration = data.get('iteration')
-
 
     def extract_beneficiary(self, beneficiary_info, pep, data):
         if beneficiary_info == self.DECLARANT:
@@ -1320,11 +1316,7 @@ class DeclarationConverter(BusinessConverter):
                 )
                 trustee_registration_number = trustee_foreign_registration_number
 
-            quantity = data.get('amount')
-            if quantity not in self.NO_DATA:
-                quantity = int(quantity)
-            else:
-                quantity = None
+            quantity = self.to_float(data.get('amount'), data)
             nominal_value = self.to_float(data.get('cost'), data)
             securities = Securities.objects.create(
                 declaration=declaration,
@@ -1345,9 +1337,7 @@ class DeclarationConverter(BusinessConverter):
                 quantity=quantity,
                 nominal_value=nominal_value
             )
-            rights_data = data.get('rights')
-            if rights_data:
-                self.save_right(securities, data)
+            self.save_right(securities, data)
 
     # TODO: implement
     def is_vehicle_luxury(self, brand, model, year):
@@ -1394,9 +1384,7 @@ class DeclarationConverter(BusinessConverter):
                 is_luxury=is_luxury,
                 valuation=valuation,
             )
-            rights_data = data.get('rights')
-            if rights_data:
-                self.save_right(vehicle, data)
+            self.save_right(vehicle, data)
 
     # possible_keys = {
     #     'otherObjectType', 'costDateUse_extendedstatus', 'dateUse', 'manufacturerName',
@@ -1438,9 +1426,7 @@ class DeclarationConverter(BusinessConverter):
                 description=description,
                 valuation=valuation
             )
-            rights_data = data.get('rights')
-            if rights_data:
-                self.save_right(luxury_item, data)
+            self.save_right(luxury_item, data)
 
     # TODO: implement as save_property()
     def save_unfinished_construction(self, unfinished_construction_data, declaration):
@@ -1462,9 +1448,7 @@ class DeclarationConverter(BusinessConverter):
                 country=country,
                 city=city,
             )
-            rights_data = data.get('rights')
-            if rights_data:
-                self.save_right(unfinished_construction_property, data)
+            self.save_right(unfinished_construction_property, data)
 
     # possible_keys = [
     #     {'ua_sameRegLivingAddress', 'percent-ownership', 'ua_regAddressFull', 'otherOwnership', 'citizen',
@@ -1534,9 +1518,7 @@ class DeclarationConverter(BusinessConverter):
                 city=city,
                 valuation=valuation,
             )
-            rights_data = data.get('rights')
-            if rights_data:
-                self.save_right(property, data)
+            self.save_right(property, data)
 
     # TODO: retrieve country from Country DB
     def find_country(self, property_country_data):
@@ -1669,6 +1651,80 @@ class DeclarationConverter(BusinessConverter):
         declaration.last_job_title = declarant_data.get('workPost')
         declaration.save()
 
+    def save_all_steps(self, data, pep, declaration):
+        # 'Step_1' - declarant`s personal data
+        self.save_declarant_data(data['step_1']['data'], pep, declaration)
+
+        def has_step_data(step_name):
+            if not data[step_name]:
+                return False
+            return not bool(data[step_name].get('isNotApplicable'))
+
+        # TODO: predict updating
+        # 'Step_2' - declarant`s family
+        if not declaration.spouse and has_step_data('step_2'):
+            self.relatives_data = data['step_2']['data']
+            self.save_related_person(pep, declaration)
+        else:
+            self.relatives_data = None
+
+        # 'Step_3' - declarant`s family`s properties
+        if has_step_data('step_3'):
+            self.save_property(data['step_3']['data'], declaration)
+
+        # 'Step_4' - declarant`s family`s unfinished construction
+        if has_step_data('step_4'):
+            self.save_unfinished_construction(data['step_4']['data'], declaration)
+
+        # 'Step_5' - declarant`s family`s luxury items
+        if has_step_data('step_5'):
+            self.save_luxury_item(data['step_5']['data'], declaration)
+
+        # 'Step_6' - declarant`s family`s vehicles
+        if has_step_data('step_6'):
+            self.save_vehicle(data['step_6']['data'], declaration)
+
+        # 'Step_7' - declarant`s family`s securities
+        if has_step_data('step_7'):
+            self.save_securities(data['step_7']['data'], declaration)
+
+        # 'Step_8' - declarant`s family`s corporate rights
+        if has_step_data('step_8'):
+            self.save_corporate_rights(data['step_8']['data'], declaration)
+
+        # 'Step_9' - companies where declarant`s family`s members are beneficiaries
+        if has_step_data('step_9'):
+            self.save_beneficiary_of(data['step_9']['data'], declaration)
+
+        # 'Step_11' - declarant`s family`s incomes
+        if has_step_data('step_11'):
+            self.save_income(data['step_11']['data'], declaration)
+
+        # 'Step_12' - declarant`s family`s money
+        if has_step_data('step_12'):
+            self.save_money(data['step_12']['data'], declaration)
+
+        # 'Step_13' - declarant`s family`s liabilities
+        if has_step_data('step_13'):
+            self.save_liability(data['step_13']['data'], declaration)
+
+        # 'Step_14' - declarant`s family`s transactions
+        if has_step_data('step_14'):
+            self.save_transaction(data['step_14']['data'], declaration)
+
+        # 'Step_15' - declarant`s part-time job info
+        if has_step_data('step_15'):
+            self.save_part_time_job(data['step_15']['data'], declaration)
+
+        # 'Step_16' - declarant`s membership in NGOs
+        if has_step_data('step_16'):
+            self.save_ngo_participation(data['step_16']['data'], declaration)
+
+        # 'Step_17' Banks and other financial institutions in which the accounts of
+        # the declarant or declarant't family are opened
+        if has_step_data('step_17'):
+            self.save_bank_account(data['step_17']['data'], declaration, pep)
+
     def save_declaration(self):
         for nacp_declarant_id in self.only_peps:
             # getting general info including declaration id
@@ -1709,102 +1765,15 @@ class DeclarationConverter(BusinessConverter):
                         pep=pep,
                     )
                 self.current_declaration = declaration
+                try:
+                    # getting full declaration data
+                    response = requests.get(settings.NACP_DECLARATION_RETRIEVE + declaration_id)
+                    if response.status_code != 200:
+                        declaration.destroy()
+                        self.log_error('cannot find declarations')
+                        continue
+                    self.save_all_steps(response.json()['data'], pep, declaration)
+                except Exception:
+                    declaration.destroy()
+                    raise
 
-                # getting full declaration data
-                response = requests.get(settings.NACP_DECLARATION_RETRIEVE + declaration_id)
-                if response.status_code != 200:
-                    self.log_error(f'cannot find declarations')
-                    continue
-                # possible_keys = {
-                #     'step_9', 'step_13', 'step_3', 'step_14', 'step_16', 'step_11', 'step_17',
-                #     'step_6', 'step_5', 'step_8', 'step_0', 'step_1', 'step_7', 'step_2',
-                #     'step_4', 'step_12', 'step_10', 'step_15',
-                # }
-                detailed_declaration_data = response.json()['data']
-
-                # TODO: predict updating
-                # 'Step_1' - declarant`s personal data
-                self.save_declarant_data(detailed_declaration_data['step_1']['data'], pep, declaration)
-
-                # TODO: predict updating
-                # 'Step_2' - declarant`s family
-                if (
-                        not declaration.spouse
-                        and detailed_declaration_data['step_2']
-                        and not detailed_declaration_data['step_2'].get('isNotApplicable')
-                ):
-                    self.relatives_data = detailed_declaration_data['step_2']['data']
-                    self.save_related_person(pep, declaration)
-                else:
-                    self.relatives_data = None
-
-                # 'Step_3' - declarant`s family`s properties
-                if (detailed_declaration_data['step_3']
-                        and not detailed_declaration_data['step_3'].get('isNotApplicable')):
-                    self.save_property(detailed_declaration_data['step_3']['data'], declaration)
-
-                # 'Step_4' - declarant`s family`s unfinished construction
-                if (detailed_declaration_data['step_4']
-                        and not detailed_declaration_data['step_4'].get('isNotApplicable')):
-                    self.save_unfinished_construction(detailed_declaration_data['step_4']['data'], declaration)
-
-                # 'Step_5' - declarant`s family`s luxury items
-                if (detailed_declaration_data['step_5']
-                        and not detailed_declaration_data['step_5'].get('isNotApplicable')):
-                    self.save_luxury_item(detailed_declaration_data['step_5']['data'], declaration)
-
-                # 'Step_6' - declarant`s family`s vehicles
-                if (detailed_declaration_data['step_6']
-                        and not detailed_declaration_data['step_6'].get('isNotApplicable')):
-                    self.save_vehicle(detailed_declaration_data['step_6']['data'], declaration)
-
-                # 'Step_7' - declarant`s family`s securities
-                if (detailed_declaration_data['step_7']
-                        and not detailed_declaration_data['step_7'].get('isNotApplicable')):
-                    self.save_securities(detailed_declaration_data['step_7']['data'], declaration)
-
-                # 'Step_8' - declarant`s family`s corporate rights
-                if (detailed_declaration_data['step_8']
-                        and not detailed_declaration_data['step_8'].get('isNotApplicable')):
-                    self.save_corporate_rights(detailed_declaration_data['step_8']['data'], declaration)
-
-                # 'Step_9' - companies where declarant`s family`s members are beneficiaries
-                if (detailed_declaration_data['step_9']
-                        and not detailed_declaration_data['step_9'].get('isNotApplicable')):
-                    self.save_beneficiary_of(detailed_declaration_data['step_9']['data'], declaration)
-
-                # 'Step_11' - declarant`s family`s incomes
-                if (detailed_declaration_data['step_11']
-                        and not detailed_declaration_data['step_11'].get('isNotApplicable')):
-                    self.save_income(detailed_declaration_data['step_11']['data'], declaration)
-
-                # 'Step_12' - declarant`s family`s money
-                if (detailed_declaration_data['step_12']
-                        and not detailed_declaration_data['step_12'].get('isNotApplicable')):
-                    self.save_money(detailed_declaration_data['step_12']['data'], declaration)
-
-                # 'Step_13' - declarant`s family`s liabilities
-                if (detailed_declaration_data['step_13']
-                        and not detailed_declaration_data['step_13'].get('isNotApplicable')):
-                    self.save_liability(detailed_declaration_data['step_13']['data'], declaration)
-
-                # 'Step_14' - declarant`s family`s transactions
-                if (detailed_declaration_data['step_14']
-                        and not detailed_declaration_data['step_14'].get('isNotApplicable')):
-                    self.save_transaction(detailed_declaration_data['step_14']['data'], declaration)
-
-                # 'Step_15' - declarant`s part-time job info
-                if (detailed_declaration_data['step_15']
-                        and not detailed_declaration_data['step_15'].get('isNotApplicable')):
-                    self.save_part_time_job(detailed_declaration_data['step_15']['data'], declaration)
-
-                # 'Step_16' - declarant`s membership in NGOs
-                if (detailed_declaration_data['step_16']
-                        and not detailed_declaration_data['step_16'].get('isNotApplicable')):
-                    self.save_ngo_participation(detailed_declaration_data['step_16']['data'], declaration)
-
-                # 'Step_17' Banks and other financial institutions in which the accounts of
-                # the declarant or declarant't family are opened
-                if (detailed_declaration_data.get('step_17')
-                        and not detailed_declaration_data['step_17'].get('isNotApplicable')):
-                    self.save_bank_account(detailed_declaration_data['step_17']['data'], declaration, pep)
