@@ -1,14 +1,15 @@
 import uuid
+
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from business_register.models.company_models import Company
 from business_register.models.pep_models import Pep
-from business_register.pep_scoring.constants import ScoringRuleEnum
-from business_register.pep_scoring.messages import SCORING_MESSAGES
 from data_ocean.models import DataOceanModel
 from location_register.models.address_models import Country
 from location_register.models.ratu_models import RatuCity
+from business_register.pep_scoring.rules_registry import ALL_RULES, ScoringRuleEnum
 
 
 class Declaration(DataOceanModel):
@@ -107,15 +108,18 @@ class Declaration(DataOceanModel):
     )
 
     def recalculate_scoring(self):
-        from business_register.pep_scoring.rules import ALL_RULES, BaseScoringRule
         for rule_id, RuleClass in ALL_RULES.items():
-            rule: BaseScoringRule = RuleClass(self)
+            rule = RuleClass(self)
             rule.calculate_with_validation()
             rule.save_to_db()
 
     def destroy(self):
         PepScoring.objects.filter(declaration=self).delete()
         self.delete()
+
+    @property
+    def nacp_url(self):
+        return f'https://public.nazk.gov.ua/documents/{self.nacp_declaration_id}'
 
     def __str__(self):
         return f'declaration of {self.pep} for {self.year} year'
@@ -1485,16 +1489,18 @@ class PepScoring(DataOceanModel):
     rule_id = models.CharField(max_length=10, choices=[(x.name, x.value) for x in ScoringRuleEnum])
     calculation_datetime = models.DateTimeField()
     score = models.FloatField()
-    data = models.JSONField()
+    data = models.JSONField(encoder=DjangoJSONEncoder)
 
     def get_message_for_locale(self, locale: str):
-        message = SCORING_MESSAGES.get(self.rule_id, '')
-        if not message:
+        rule = ALL_RULES.get(self.rule_id, None)
+        if self.score == 0 or not rule:
             return ''
-        message = message.get(locale, '')
-        if not message:
+        message = getattr(rule, f'message_{locale}', '')
+        try:
+            message = message.format(**self.data)
+        except KeyError:
             return ''
-        return message.format(**self.data)
+        return message
 
     @property
     def message_uk(self):
