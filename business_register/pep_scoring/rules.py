@@ -256,3 +256,35 @@ class IsCostlyPresents(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+@register_rule
+class IsNewCar(BaseScoringRule):
+    """
+    Rule 17 - PEP17
+    weight - 0.8
+    Declared ownership of vehicle produced after 2013 with an indicated value less than 150000 UAH
+    """
+
+    rule_id = ScoringRuleEnum.PEP17
+
+    class DataSerializer(serializers.Serializer):
+        car_producing_year = serializers.IntegerField(min_value=0, required=True)
+        car_valuation = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        year = 2013  # min production year
+        price = 150000  # max vehicle price
+        have_weight = Vehicle.objects.filter(
+            declaration_id=self.declaration.id,
+            created_at__year__gte=year,
+            valuation__lte=price,
+        ).values_list('year', 'valuation')[::1]
+        if have_weight:
+            weight = 0.8
+            data = {
+                "car_producing_year": have_weight[0][0],
+                "car_valuation": have_weight[0][1],
+            }
+            return weight, data
+        return 0, {}
