@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Union
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -253,6 +254,40 @@ class IsCostlyPresents(BaseScoringRule):
             weight = 0.8
             data = {
                 "presents_price_UAH": presents_price_UAH,
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsCashTotalAmount(BaseScoringRule):
+    """
+    Rule 20 - PEP20
+    weight - 0.8
+    The overall amount of declared hard cash owned by PEP and members of the family exceeds 1.5 million UAH
+    """
+
+    rule_id = ScoringRuleEnum.PEP20
+
+    class DataSerializer(serializers.Serializer):
+        assets_USD = serializers.FloatFieldField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        year = self.declaration.year
+        max_sum = convert_to_usd('UAH', 1500000, year)  # max amount of cash
+        assets_USD = 0.0
+        assets = Money.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'currency')[::1]
+        for currency_pair in assets:
+            try:
+                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+            except:
+                pass
+        if assets_USD > max_sum:
+            weight = 0.8
+            data = {
+                "assets_USD": assets_USD,
             }
             return weight, data
         return 0, {}
