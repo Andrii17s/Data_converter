@@ -270,7 +270,7 @@ class IsCashTotalAmount(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP20
 
     class DataSerializer(serializers.Serializer):
-        assets_USD = serializers.FloatFieldField(min_value=0, required=True)
+        assets_USD = serializers.FloatField(min_value=0, required=True)
 
     def calculate_weight(self) -> Tuple[Union[int, float], dict]:
         year = self.declaration.year
