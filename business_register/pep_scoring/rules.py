@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Union
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -250,6 +251,66 @@ class IsCostlyPresents(BaseScoringRule):
             weight = 0.8
             data = {
                 "presents_price_UAH": presents_price_UAH,
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsMoneyFromNowhere(BaseScoringRule):
+    """
+    Rule 21 - PEP21
+    weight - 1.0
+    Monetary assets declared this year exceed the sum of
+    income and amount of monetary assets of the previous year
+    """
+
+    rule_id = ScoringRuleEnum.PEP21
+
+    class DataSerializer(serializers.Serializer):
+        new_year = serializers.IntegerField(min_value=0, required=True)
+        old_sum_USD = serializers.IntegerField(min_value=0, required=True)
+        new_sum_USD = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
+
+        try:
+            old_declaration = Declaration.objects.filter(
+                pep_id=self.pep.id,
+                year=year - 1
+            ).values('id', 'year')[::1][0]
+        except:
+            return 0, {}
+        new_declaration = {'id': self.declaration.id, 'year': year}
+        declaration_sum = []
+        for declaration in (old_declaration, new_declaration):
+            declaration_id = declaration['id']
+            assets_USD = 0.0
+            income_UAH = 0.0
+            try:
+                assets = Money.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'currency')[::1]
+                for currency_pair in assets:
+                    assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+                incomes = Income.objects.filter(
+                    declaration_id=declaration_id,
+                ).values_list('amount', 'type')[::1]
+                for income in incomes:
+                    income_UAH += income[0]
+                income_USD = convert_to_usd('UAH', income_UAH, year)
+                assets_USD += income_USD
+            except:
+                pass
+            declaration_sum.append(assets_USD)
+            declaration_sum.append(income_USD)
+        if declaration_sum[0] + declaration_sum[1] < declaration_sum[2]:
+            weight = 1.0
+            data = {
+                "new_year": year,
+                "old_sum_USD": declaration_sum[0] + declaration_sum[1],
+                "new_sum_USD": declaration_sum[2],
             }
             return weight, data
         return 0, {}
