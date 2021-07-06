@@ -256,3 +256,31 @@ class IsCostlyPresents(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+@register_rule
+class IsLotteryPrize(BaseScoringRule):
+    """
+    Rule 16 - PEP16
+    weight - 1.0
+    Declared lottery winning or prize with a price of more than 10 000 UAH
+    """
+
+    rule_id = ScoringRuleEnum.PEP16
+
+    class DataSerializer(serializers.Serializer):
+        prize_price_UAH = serializers.FloatField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        prize_max_amount = 10000
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type')[::1]
+        for income in incomes:
+            if income[1] == Income.PRIZE and income[0] > prize_max_amount:
+                weight = 1.0
+                data = {
+                    "prize_price_UAH": income[0],
+                }
+                return weight, data
+        return 0, {}
