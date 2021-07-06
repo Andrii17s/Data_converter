@@ -86,11 +86,10 @@ class IsRealEstateWithoutValue(BaseScoringRule):
 
     class DataSerializer(serializers.Serializer):
         property_count = serializers.IntegerField(min_value=0, required=True)
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
-                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
+                       PropertyRight.COMMON_PROPERTY]
         property_types = [Property.SUMMER_HOUSE, Property.HOUSE, Property.APARTMENT, Property.ROOM,
                           Property.GARAGE, Property.UNFINISHED_CONSTRUCTION, Property.OTHER, Property.OFFICE]
         have_weight = PropertyRight.objects.filter(
@@ -104,7 +103,6 @@ class IsRealEstateWithoutValue(BaseScoringRule):
             weight = 0.4
             data = {
                 "property_count": len(have_weight),
-                "declaration_id": have_weight[0][1],
             }
             return weight, data
         return 0, {}
@@ -123,11 +121,10 @@ class IsLandWithoutValue(BaseScoringRule):
 
     class DataSerializer(serializers.Serializer):
         property_count = serializers.IntegerField(min_value=0, required=True)
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
         right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
-                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
+                       PropertyRight.COMMON_PROPERTY]
         have_weight = PropertyRight.objects.filter(
             property__declaration_id=self.declaration.id,
             property__valuation__isnull=True,
@@ -139,7 +136,6 @@ class IsLandWithoutValue(BaseScoringRule):
             weight = 0.1
             data = {
                 "property_count": len(have_weight),
-                "declaration_id": have_weight[0][1],
             }
             return weight, data
         return 0, {}
@@ -158,11 +154,10 @@ class IsAutoWithoutValue(BaseScoringRule):
 
     class DataSerializer(serializers.Serializer):
         vehicle_count = serializers.IntegerField(min_value=0, required=True)
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
     def calculate_weight(self) -> tuple[int or float, dict]:
-        right_types = [PropertyRight.OWNERSHIP, PropertyRight.BENEFICIAL_OWNERSHIP, PropertyRight.JOINT_OWNERSHIP,
-                       PropertyRight.COMMON_PROPERTY, PropertyRight.USAGE, PropertyRight.OTHER_USAGE_RIGHT]
+        right_types = [VehicleRight.OWNERSHIP, VehicleRight.BENEFICIAL_OWNERSHIP, VehicleRight.JOINT_OWNERSHIP,
+                       VehicleRight.COMMON_PROPERTY]
         have_weight = VehicleRight.objects.filter(
             car__declaration_id=self.declaration.id,
             car__valuation__isnull=True,
@@ -173,7 +168,6 @@ class IsAutoWithoutValue(BaseScoringRule):
             weight = 0.4
             data = {
                 "vehicle_count": len(have_weight),
-                "declaration_id": have_weight[0][1],
             }
             return weight, data
         return 0, {}
