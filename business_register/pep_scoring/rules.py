@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from django.utils import timezone
 from rest_framework import serializers
+from typing import Tuple, Union
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -179,9 +180,8 @@ class IsLuxuryCar(BaseScoringRule):
     class DataSerializer(serializers.Serializer):
         type = serializers.CharField(min_length=5, required=True)
         reason = serializers.CharField(min_length=6, required=True)
-        declaration_id = serializers.IntegerField(min_value=0, required=True)
 
-    def calculate_weight(self) -> tuple[int or float, dict]:
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
         max_price = 800000  # max price of non-luxury vehicle
         have_car = Vehicle.objects.filter(
             declaration_id=self.declaration.id,
@@ -192,7 +192,6 @@ class IsLuxuryCar(BaseScoringRule):
             data = {
                 "type": 'owner',
                 "reason": 'luxury',
-                "declaration_id": self.declaration.id,
             }
             return weight, data
         have_car = Vehicle.objects.filter(
@@ -204,7 +203,6 @@ class IsLuxuryCar(BaseScoringRule):
             data = {
                 "type": 'owner',
                 "reason": 'expensive',
-                "declaration_id": self.declaration.id,
             }
             return weight, data
         have_rights = VehicleRight.objects.filter(
@@ -216,7 +214,6 @@ class IsLuxuryCar(BaseScoringRule):
             data = {
                 "type": 'rights',
                 "reason": 'luxury',
-                "declaration_id": self.declaration.id,
             }
             return weight, data
         have_rights = VehicleRight.objects.filter(
@@ -228,7 +225,6 @@ class IsLuxuryCar(BaseScoringRule):
             data = {
                 "type": 'rights',
                 "reason": 'expensive',
-                "declaration_id": self.declaration.id,
             }
             return weight, data
         return 0, {}
