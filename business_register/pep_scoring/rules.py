@@ -228,6 +228,49 @@ class IsAutoWithoutValue(BaseScoringRule):
 
 
 @register_rule
+class IsCreativeWork(BaseScoringRule):
+    """
+    Rule 10 - PEP10
+    weight - 0.2
+    Income from the teaching and creative activities, as well as part-time work,
+    exceeds 30% of the total income indicated in the declaration
+    """
+
+    rule_id = ScoringRuleEnum.PEP10
+
+    class DataSerializer(serializers.Serializer):
+        creative_income_UAH = serializers.IntegerField(min_value=0, required=True)
+        assets_UAH = serializers.IntegerField(min_value=0, required=True)
+        division = serializers.FloatField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        assets_UAH = 0
+        creative_income_UAH = 0
+        incomes = Income.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'type', 'declaration__part_time_jobs__description')[::1]
+        for income in incomes:
+            try:
+                assets_UAH += income[0]
+            except:
+                pass
+            if income[1] == Income.PART_TIME_SALARY or income[2] is None:
+                try:
+                    creative_income_UAH += income[0]
+                except:
+                    pass
+        if creative_income_UAH > assets_UAH * 0.3:
+            weight = 0.2
+            data = {
+                "creative_income_UAH": creative_income_UAH,
+                "assets_UAH": assets_UAH,
+                "division": (creative_income_UAH/assets_UAH) * 100,
+            }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
 class IsCostlyPresents(BaseScoringRule):
     """
     Rule 15 - PEP15
