@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from django.utils import timezone
 from rest_framework import serializers
 from typing import Tuple, Union
+from data_ocean.utils import convert_to_usd
 
 from business_register.models.declaration_models import (
     Declaration,
@@ -251,5 +252,64 @@ class IsCostlyPresents(BaseScoringRule):
             data = {
                 "presents_price_UAH": presents_price_UAH,
             }
+            return weight, data
+        return 0, {}
+
+
+@register_rule
+class IsMultiplyingMoney(BaseScoringRule):
+    """
+    Rule 22 - PEP22
+    weight - 0.8
+    Hard cash declared in the very first electronic asset declaration available in
+    the system exceeds in 5 or more times income declared for the corresponding year
+    """
+
+    rule_id = ScoringRuleEnum.PEP22
+
+    class DataSerializer(serializers.Serializer):
+        assets_USD = serializers.IntegerField(min_value=0, required=True)
+        income_USD = serializers.IntegerField(min_value=0, required=True)
+        year = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> tuple[int or float, dict]:
+        year = self.declaration.year
+        declarations = Declaration.objects.filter(
+            pep_id=self.pep.id,
+        ).values('id', 'year')[::1]
+        declaration_ids = {}
+
+        for declaration in declarations:
+            year = declaration['year']
+            if year not in declaration_ids:
+                declaration_ids[declaration['year']] = []
+                declaration_ids[declaration['year']].extend([declaration['id']])
+            elif not declaration['id'] in declaration_ids[year]:
+                declaration_ids[year].extend([declaration['id']])
+        id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
+        assets = Money.objects.filter(
+            declaration_id=id_sort_by_year[0][1][0],
+        ).values_list('amount', 'currency')[::1]
+        incomes = Income.objects.filter(
+            declaration_id=id_sort_by_year[0][1][0],
+        ).values_list('amount', flat=True)[::1]
+        income_UAH = 0
+        for income in incomes:
+            income_UAH += income
+        income_USD = convert_to_usd('UAH', income_UAH, year)
+        assets_USD = 0
+        for currency_pair in assets:
+            assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+
+        weight = 0.8
+        data = {
+            "assets_USD": assets_USD,
+            "income_USD": income_USD,
+            "year": id_sort_by_year[0][0],
+
+        }
+        if income_USD == 0 and assets_USD != 0:
+            return weight, data
+        if (assets_USD / income_USD) > 5:
             return weight, data
         return 0, {}
