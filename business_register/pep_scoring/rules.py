@@ -257,7 +257,7 @@ class IsCostlyPresents(BaseScoringRule):
 
 
 @register_rule
-class IsMultiplyingMoney(BaseScoringRule):
+class IsAssetsExceedsIncome(BaseScoringRule):
     """
     Rule 22 - PEP22
     weight - 0.8
@@ -268,48 +268,55 @@ class IsMultiplyingMoney(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP22
 
     class DataSerializer(serializers.Serializer):
-        assets_USD = serializers.IntegerField(min_value=0, required=True)
-        income_USD = serializers.IntegerField(min_value=0, required=True)
-        year = serializers.IntegerField(min_value=0, required=True)
+        assets_USD = serializers.FloatField(min_value=0, required=True)
+        income_USD = serializers.FloatField(min_value=0, required=True)
 
-    def calculate_weight(self) -> tuple[int or float, dict]:
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
         year = self.declaration.year
         declarations = Declaration.objects.filter(
             pep_id=self.pep.id,
-        ).values('id', 'year')[::1]
+        ).values('id', 'submission_date')[::1]
         declaration_ids = {}
+        income_USD = 0.0
+        assets_USD = 0.0
 
         for declaration in declarations:
-            year = declaration['year']
-            if year not in declaration_ids:
-                declaration_ids[declaration['year']] = []
-                declaration_ids[declaration['year']].extend([declaration['id']])
-            elif not declaration['id'] in declaration_ids[year]:
-                declaration_ids[year].extend([declaration['id']])
-        id_sort_by_year = sorted(declaration_ids.items(), key=lambda x: x[0])
+            submission_date = declaration['submission_date']
+            if submission_date not in declaration_ids:
+                declaration_ids[declaration['submission_date']] = []
+                declaration_ids[declaration['submission_date']].extend([declaration['id']])
+            elif not declaration['id'] in declaration_ids[submission_date]:
+                declaration_ids[submission_date].extend([declaration['id']])
+        id_sort_by_date = sorted(declaration_ids.items(), key=lambda x: x[0])
         assets = Money.objects.filter(
-            declaration_id=id_sort_by_year[0][1][0],
+            declaration_id=id_sort_by_date[0][1][0],
         ).values_list('amount', 'currency')[::1]
         incomes = Income.objects.filter(
-            declaration_id=id_sort_by_year[0][1][0],
+            declaration_id=id_sort_by_date[0][1][0],
         ).values_list('amount', flat=True)[::1]
         income_UAH = 0
         for income in incomes:
             income_UAH += income
-        income_USD = convert_to_usd('UAH', income_UAH, year)
-        assets_USD = 0
+        try:
+            income_USD = convert_to_usd('UAH', float(income_UAH), year)
+        except:
+            pass
         for currency_pair in assets:
-            assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+            try:
+                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+            except:
+                pass
 
         weight = 0.8
         data = {
             "assets_USD": assets_USD,
             "income_USD": income_USD,
-            "year": id_sort_by_year[0][0],
-
         }
-        if income_USD == 0 and assets_USD != 0:
-            return weight, data
+        if income_USD == 0:
+            if assets_USD != 0:
+                return weight, data
+            else:
+                return 0, {}
         if (assets_USD / income_USD) > 5:
             return weight, data
         return 0, {}
