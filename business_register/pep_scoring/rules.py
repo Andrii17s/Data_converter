@@ -256,3 +256,39 @@ class IsCostlyPresents(BaseScoringRule):
             }
             return weight, data
         return 0, {}
+
+
+@register_rule
+class IsManyCars(BaseScoringRule):
+    """
+    Rule 19 - PEP19
+    weight - 0.4
+    Declared ownership and/or right of use of more than 5 cars
+    """
+
+    rule_id = ScoringRuleEnum.PEP19
+
+    class DataSerializer(serializers.Serializer):
+        total_cars_have = serializers.IntegerField(min_value=0, required=True)
+
+    def calculate_weight(self) -> Tuple[Union[int, float], dict]:
+        year = self.declaration.year
+        max_count = 5  # max amount of cars
+        owner_types = [VehicleRight.OWNERSHIP, VehicleRight.BENEFICIAL_OWNERSHIP, VehicleRight.JOINT_OWNERSHIP,
+                       VehicleRight.COMMON_PROPERTY]
+        have_car = Vehicle.objects.filter(
+            declaration=self.declaration.id,
+        ).count()
+        have_rights = VehicleRight.objects.filter(
+            pep_id=self.pep.id,
+            acquisition_date__year=year,
+            owner_type__in=owner_types,
+        ).count()
+        total = have_car + have_rights
+        if total > max_count:
+            weight = 0.4
+            data = {
+                "total_cars_have": total,
+            }
+            return weight, data
+        return 0, {}
