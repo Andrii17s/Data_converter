@@ -298,6 +298,7 @@ class IsMoneyFromNowhere(BaseScoringRule):
                     assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
                 incomes = Income.objects.filter(
                     declaration_id=declaration_id,
+                    recipient_id=self.pep.id,
                 ).values_list('amount', 'type')[::1]
                 for income in incomes:
                     income_UAH += income[0]
