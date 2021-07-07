@@ -248,13 +248,13 @@ class IsCreativeWork(BaseScoringRule):
         creative_income_UAH = 0
         incomes = Income.objects.filter(
             declaration_id=self.declaration.id,
-        ).values_list('amount', 'type', 'declaration__part_time_jobs__description')[::1]
+        ).values_list('amount', 'type')[::1]
         for income in incomes:
             try:
                 assets_UAH += income[0]
             except:
                 pass
-            if income[1] == Income.PART_TIME_SALARY or income[2] is None:
+            if income[1] == Income.PART_TIME_SALARY:
                 try:
                     creative_income_UAH += income[0]
                 except:
