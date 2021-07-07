@@ -257,7 +257,7 @@ class IsCostlyPresents(BaseScoringRule):
 
 
 @register_rule
-class IsAssetsExceedsIncome(BaseScoringRule):
+class IsAssetsSmallIncome(BaseScoringRule):
     """
     Rule 22 - PEP22
     weight - 0.8
