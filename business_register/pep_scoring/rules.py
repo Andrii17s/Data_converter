@@ -294,6 +294,7 @@ class IsAssetsSmallIncome(BaseScoringRule):
         ).values_list('amount', 'currency')[::1]
         incomes = Income.objects.filter(
             declaration_id=id_sort_by_date[0][1][0],
+            recipient_id=self.pep.id,
         ).values_list('amount', flat=True)[::1]
         income_UAH = 0
         for income in incomes:
