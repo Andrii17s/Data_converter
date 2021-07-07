@@ -158,6 +158,16 @@ class IsSpendingMore(BaseScoringRule):
                 assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
             except:
                 pass
+        properties = Property.objects.filter(
+            declaration=self.declaration.id,
+        ).values_list('valuation', flat=True)[::1]
+        properties_price = 0.0
+        for property in properties:
+            try:
+                properties_price += property
+            except:
+                pass
+        assets_USD += convert_to_usd('UAH', float(properties_price), year)
         if assets_USD > income_USD * 10:
             weight = 0.4
             data = {
