@@ -288,9 +288,6 @@ class IsBigExpenditures(BaseScoringRule):
         return 0, {}
 
 
-x = IsBigExpenditures(Declaration.objects.raw('SELECT * from business_register_declaration WHERE id=1')[0])
-print(x.calculate_weight())
-
 @register_rule
 class IsCostlyPresents(BaseScoringRule):
     """
