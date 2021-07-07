@@ -260,28 +260,25 @@ class IsBigExpenditures(BaseScoringRule):
             except:
                 pass
         income_USD = convert_to_usd('UAH', float(income_UAH), year)
-        try:
-            assets = Money.objects.filter(
-                declaration_id=self.declaration.id,
-            ).values_list('amount', 'currency')[::1]
-            for currency_pair in assets:
-                try:
-                    assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
-                except:
-                    pass
-                expenditures = Transaction.objects.filter(
-                    declaration_id=self.declaration.id,
-                    ).values_list('amount')[::1]
-                for expenditure in expenditures:
-                    try:
-                        expenditures_UAH += expenditure
-                    except:
-                        pass
-                    expenditures_USD = convert_to_usd('UAH', float(expenditures_UAH), year)
-        except:
-            pass
+        assets = Money.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount', 'currency')[::1]
+        for currency_pair in assets:
+            try:
+                assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
+            except:
+                pass
+        expenditures = Transaction.objects.filter(
+            declaration_id=self.declaration.id,
+        ).values_list('amount')[::1]
+        for expenditure in expenditures:
+            try:
+                expenditures_UAH += expenditure
+            except:
+                pass
+            expenditures_USD = convert_to_usd('UAH', float(expenditures_UAH), year)
         total_USD = assets_USD + income_USD
-        if total_USD <= expenditures_USD:
+        if expenditures_USD > total_USD:
             weight = 0.7
             data = {
                 "total_USD": total_USD,
@@ -290,6 +287,9 @@ class IsBigExpenditures(BaseScoringRule):
             return weight, data
         return 0, {}
 
+
+x = IsBigExpenditures(Declaration.objects.raw('SELECT * from business_register_declaration WHERE id=1')[0])
+print(x.calculate_weight())
 
 @register_rule
 class IsCostlyPresents(BaseScoringRule):
