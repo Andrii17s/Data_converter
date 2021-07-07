@@ -266,14 +266,25 @@ class IsPropertyGrowth(BaseScoringRule):
                     total += convert_to_usd('UAH', float(vehicle), year)
                 except:
                     pass
-            try:
-                assets = Money.objects.filter(
-                    declaration_id=declaration_id,
-                ).values_list('amount', 'currency')[::1]
-                for currency_pair in assets:
+            assets = Money.objects.filter(
+                declaration_id=declaration_id,
+                owner_id=self.pep.id,
+            ).values_list('amount', 'currency')[::1]
+            for currency_pair in assets:
+                try:
                     total += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
-            except:
-                pass
+                except:
+                    pass
+            properties = Property.objects.filter(
+                declaration=self.declaration.id,
+            ).values_list('valuation', flat=True)[::1]
+            properties_price = 0.0
+            for property in properties:
+                try:
+                    properties_price += property
+                except:
+                    pass
+            total += convert_to_usd('UAH', float(properties_price), year)
             declaration_sum.append(total)
         if declaration_sum[0] * 5 < declaration_sum[1]:
             weight = 0.4
