@@ -290,6 +290,7 @@ class IsAssetsSmallIncome(BaseScoringRule):
         id_sort_by_date = sorted(declaration_ids.items(), key=lambda x: x[0])
         assets = Money.objects.filter(
             declaration_id=id_sort_by_date[0][1][0],
+            owner_id=self.pep.id,
         ).values_list('amount', 'currency')[::1]
         incomes = Income.objects.filter(
             declaration_id=id_sort_by_date[0][1][0],
