@@ -266,10 +266,15 @@ class IsAssetsSmallIncome(BaseScoringRule):
     """
 
     rule_id = ScoringRuleEnum.PEP22
+    message_uk = 'готівкові кошти в першій електронній декларації становлять {assets_USD} грн., ' \
+                 'що перевищує в {division} разів декларований дохід за відповідний рік {income_USD}'
+    message_en = 'cash declared in the very first electronic asset declaration available in the system is {assets_USD}'\
+                 ' UAH, that in {division} times exceeds income of {income_USD} UAH declared for the corresponding year'
 
     class DataSerializer(serializers.Serializer):
         assets_USD = serializers.FloatField(min_value=0, required=True)
         income_USD = serializers.FloatField(min_value=0, required=True)
+        division = serializers.FloatField(min_value=0, required=True)
 
     def calculate_weight(self) -> Tuple[Union[int, float], dict]:
         year = self.declaration.year
@@ -308,11 +313,12 @@ class IsAssetsSmallIncome(BaseScoringRule):
                 assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
             except:
                 pass
-
+        division = assets_USD / income_USD
         weight = 0.8
         data = {
             "assets_USD": assets_USD,
             "income_USD": income_USD,
+            "division": division,
         }
         if income_USD == 0:
             if assets_USD != 0:
