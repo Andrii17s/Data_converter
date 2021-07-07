@@ -292,6 +292,7 @@ class IsMoneyFromNowhere(BaseScoringRule):
             try:
                 assets = Money.objects.filter(
                     declaration_id=declaration_id,
+                    owner_id=self.pep.id,
                 ).values_list('amount', 'currency')[::1]
                 for currency_pair in assets:
                     assets_USD += convert_to_usd(currency_pair[1], float(currency_pair[0]), year)
