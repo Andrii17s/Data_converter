@@ -288,6 +288,7 @@ class IsCostlyPresents(BaseScoringRule):
         incomes = Income.objects.filter(
             declaration_id=self.declaration.id,
             amount__isnull=False,
+            recipient_id=self.pep.id,
         ).values_list('amount', 'type')[::1]
         for income in incomes:
             if income[1] in (Income.GIFT_IN_CASH, Income.GIFT):
