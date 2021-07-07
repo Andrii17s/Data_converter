@@ -248,6 +248,7 @@ class IsCreativeWork(BaseScoringRule):
         creative_income_UAH = 0
         incomes = Income.objects.filter(
             declaration_id=self.declaration.id,
+            recipient_id=self.pep.id
         ).values_list('amount', 'type')[::1]
         for income in incomes:
             try:
