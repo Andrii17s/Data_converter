@@ -1455,6 +1455,7 @@ class BaseRight(DataOceanModel):
     RENT = 5
     USAGE = 6
     OWNER_IS_ANOTHER_PERSON = 7
+    NO_RIGHTS_FROM_FAMILY_MEMBER = 19
     NO_INFO_FROM_FAMILY_MEMBER = 20
     OTHER_USAGE_RIGHT = 10
 
@@ -1468,6 +1469,7 @@ class BaseRight(DataOceanModel):
         (OTHER_USAGE_RIGHT, 'Other right of usage'),
         (OWNER_IS_ANOTHER_PERSON, 'Owner is another person'),
         (NO_INFO_FROM_FAMILY_MEMBER, 'Family member did not provide the information'),
+        (NO_RIGHTS_FROM_FAMILY_MEMBER, 'The person did not provide from above for the processing of personal data'),
     )
     DECLARANT = 1
     FAMILY_MEMBER = 2
