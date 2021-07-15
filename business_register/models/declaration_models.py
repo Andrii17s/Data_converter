@@ -708,7 +708,7 @@ class Income(DataOceanModel):
     SALE_OF_PROPERTY = 17
     LEGACY = 18
     PART_TIME_SALARY = 19
-    SALE_OF_LUXURIES = 20
+    SALE_OF_MOVABLES = 20
     SELF_EMPLOYMENT = 21
     ROYALTY = 22
 
@@ -731,7 +731,8 @@ class Income(DataOceanModel):
         (SALE_OF_PROPERTY, 'Sale of property'),
         (LEGACY, 'Legacy'),
         (PART_TIME_SALARY, 'Salary from part-time job'),
-        (SALE_OF_LUXURIES, 'Sale of luxuries'),
+        # actually, sale of any movable property. Maybe, better to rename
+        (SALE_OF_MOVABLES, 'Sale of movables'),
         (SELF_EMPLOYMENT, 'Self-employment'),
         (ROYALTY, 'Royalty'),
     )
@@ -1393,9 +1394,12 @@ class IntangibleAsset(DataOceanModel):
     SWISSBORG = 10
     EOS = 11
     UTRUST = 12
+    ETHERIUM_CLASSIC = 13
+    XRP = 14
+    BNB = 15
     CRYPTOCURRENCY_TYPES = (
         (BITCOIN, 'Bitcoin'),
-        (ETHERIUM, 'ETHERIUM'),
+        (ETHERIUM, 'Etherium'),
         (RIPPLE, 'Ripple'),
         (NXT, 'NXT'),
         (LITECOIN, 'Litecoin'),
@@ -1405,7 +1409,10 @@ class IntangibleAsset(DataOceanModel):
         (SYNTROPY, 'Syntropy'),
         (SWISSBORG, 'Swissborg'),
         (EOS, 'EOS'),
-        (UTRUST, 'Utrust')
+        (UTRUST, 'Utrust'),
+        (ETHERIUM, 'Etherium classic'),
+        (XRP, 'XRP'),
+        (BNB, 'BNB')
     )
     declaration = models.ForeignKey(
         Declaration,
@@ -1455,8 +1462,8 @@ class BaseRight(DataOceanModel):
     RENT = 5
     USAGE = 6
     OWNER_IS_ANOTHER_PERSON = 7
-    NO_RIGHTS_FROM_FAMILY_MEMBER = 19
     NO_INFO_FROM_FAMILY_MEMBER = 20
+    NO_RIGHTS_FROM_FAMILY_MEMBER = 21
     OTHER_USAGE_RIGHT = 10
 
     RIGHT_TYPES = (
@@ -1469,7 +1476,7 @@ class BaseRight(DataOceanModel):
         (OTHER_USAGE_RIGHT, 'Other right of usage'),
         (OWNER_IS_ANOTHER_PERSON, 'Owner is another person'),
         (NO_INFO_FROM_FAMILY_MEMBER, 'Family member did not provide the information'),
-        (NO_RIGHTS_FROM_FAMILY_MEMBER, 'The person did not provide from above for the processing of personal data'),
+        (NO_RIGHTS_FROM_FAMILY_MEMBER, 'Family member did not consent to the processing of personal data'),
     )
     DECLARANT = 1
     FAMILY_MEMBER = 2
