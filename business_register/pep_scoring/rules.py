@@ -231,12 +231,19 @@ class IsSpouseDeclared(BaseScoringRule):
     """
 
     rule_id = ScoringRuleEnum.PEP01
-    message_uk = (
-        'У декларації про майно немає даних про члена родини, '
-        'тоді як у реєстрі pep.org.ua є {relationship_type} {spouse_full_name} '
-        '{spouse_companies_info}. '
-    )
     message_en = 'Asset declaration does not indicate PEP\'s spouse'
+
+    @classmethod
+    def get_message_uk(cls, data: dict) -> str:
+        if data.get('spouse_companies_info'):
+            return (
+                'У декларації про майно немає даних про члена родини, тоді як у реєстрі pep.org.ua '
+                'є {relationship_type} {spouse_full_name} {spouse_companies_info}'
+            )
+        return (
+            'У декларації про майно немає даних про члена родини, тоді як у реєстрі pep.org.ua '
+            'є {relationship_type} {spouse_full_name}'
+        )
 
     class DataSerializer(serializers.Serializer):
         relationship_type = serializers.CharField(required=True)
@@ -516,7 +523,7 @@ class IsAssetsJumped(BaseScoringRule):
     rule_id = ScoringRuleEnum.PEP05
     message_uk = (
         "Сума задекларованих нерухомості, авто та готівки - разом еквівалент {total_assets_USD} USD "
-        "зросла більш ніж у п'ять разів порівнено з попереднім роком - {previous_total_assets_USD} USD, "
+        "зросла більш ніж у п'ять разів порівняно з попереднім роком - {previous_total_assets_USD} USD, "
         "у той час як зобов'язання змінилися з {total_liabilities_USD} USD до "
         "{previous_total_liabilities_USD} USD"
     )
@@ -841,7 +848,7 @@ class IsGiftExpensive(BaseScoringRule):
     """
     rule_id = ScoringRuleEnum.PEP15
     message_uk = (
-        "Загальна вартість задекларованих порадунків перевищує 300 тисяч гривень - {total_valuation}"
+        "Загальна вартість задекларованих подарунків перевищує 300 тисяч гривень - {total_valuation}"
     )
     message_en = 'Total valuation of declared gifts exceeds UAH 300 000 - {total_valuation}'
 
@@ -1220,8 +1227,13 @@ class IsCryptocurrency(BaseScoringRule):
 
     rule_id = ScoringRuleEnum.PEP26
     # TODO: define how to change messages here and in the PEP01
-    message_uk = "Задекларовано криптовалюту {no_cryptocurrency_amount}"
     message_en = "Declared cryptocurrency"
+
+    @classmethod
+    def get_message_uk(cls, data: dict) -> str:
+        if data.get('no_cryptocurrency_amount'):
+            return 'Задекларовано криптовалюту {no_cryptocurrency_amount}'
+        return 'Задекларовано криптовалюту'
 
     class DataSerializer(serializers.Serializer):
         # parameter for upgrading this rule later
@@ -1300,8 +1312,8 @@ class IsLuxuryCar(BaseScoringRule):
                  'hryvnias or is included in the list of cars subject to transport tax and approved by ' \
                  f'the Ministry of Economy {link_to_list}?lang=en-GB'
     message_uk = 'У декларації зазначено {amount_luxury_cars} автомобілів, ціна яких більше 800 тисяч гривень ' \
-                 'або входять в перелік автомобілів, які підлягають оподаткуванню транспортним податком ' \
-                 f'і затверджений Міністерством економіки {link_to_list}?lang=uk-UA'
+                 'або що входять в перелік автомобілів, які підлягають оподаткуванню транспортним податком ' \
+                 f'і затверджені Міністерством економіки {link_to_list}?lang=uk-UA'
 
     class DataSerializer(serializers.Serializer):
         amount_luxury_cars = serializers.IntegerField(min_value=0, required=True)
